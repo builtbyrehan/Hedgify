@@ -2,11 +2,13 @@
 FastAPI REST routes — portfolio data, alerts, stress test endpoints.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, timedelta
 
-from models.database import get_db, PortfolioSnapshot, Alert, Hedge
+from models.database import get_db, PortfolioSnapshot, Alert, Hedge, SessionLocal
+from api.websocket import websocket_manager
 
 router = APIRouter()
 
@@ -18,12 +20,76 @@ async def get_portfolio(db: Session = Depends(get_db)):
         PortfolioSnapshot.timestamp.desc()
     ).first()
     if not latest:
-        return {"portfolio_value": 0, "peak_value": 0, "drawdown": 0}
+        return {"portfolio_value": 124382, "peak_value": 127104, "drawdown": 0.0214}
     return {
         "portfolio_value": latest.portfolio_value,
         "peak_value": latest.peak_value,
         "drawdown": latest.drawdown_pct
     }
+
+
+@router.get("/portfolio/history")
+async def get_portfolio_history(limit: int = 30, db: Session = Depends(get_db)):
+    """Get recent portfolio snapshots for chart."""
+    snaps = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.timestamp.desc()).limit(limit).all()
+    snaps = list(reversed(snaps))
+    if not snaps:
+        # seed demo history
+        now = datetime.utcnow()
+        base = 124382
+        peak = 127104
+        return [
+            {"time": (now - timedelta(seconds=(30 - i) * 10)).isoformat(), "value": base - 600 + i * 40 + (i % 3) * 80, "peak": peak, "ts": (now - timedelta(seconds=(30 - i) * 10)).timestamp() * 1000}
+            for i in range(18)
+        ]
+    return [
+        {"time": s.timestamp.isoformat(), "value": s.portfolio_value, "peak": s.peak_value, "drawdown": s.drawdown_pct, "ts": s.timestamp.timestamp() * 1000}
+        for s in snaps
+    ]
+
+
+@router.post("/simulate-drawdown")
+async def simulate_drawdown(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    """Stress test: force a drawdown, fire ALERT + HEDGE live. Demo 'watch this' button."""
+    drawdown_pct = float(payload.get("drawdown_pct", 0.028))
+    symbol = payload.get("symbol", "AAPL")
+    # get peak
+    latest = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.timestamp.desc()).first()
+    peak = latest.peak_value if latest else 127104
+    crash_value = peak * (1 - drawdown_pct)
+
+    # persist snapshot
+    snap = PortfolioSnapshot(portfolio_value=crash_value, peak_value=peak, drawdown_pct=drawdown_pct)
+    db.add(snap)
+    db.commit()
+
+    # create alert
+    price = 230.0
+    alert = Alert(stock_symbol=symbol, current_price=price, drawdown_pct=drawdown_pct, status="fired")
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+
+    await websocket_manager.broadcast({
+        "type": "ALERT",
+        "data": {"symbol": symbol, "drawdown": f"{drawdown_pct:.2%}", "portfolio_value": crash_value, "peak_value": peak, "timestamp": datetime.utcnow().isoformat()}
+    })
+
+    # hand off to executor (idempotent)
+    from agents.executor import executor
+    await executor.process_alert(alert.id, symbol, price, drawdown_pct)
+
+    return {"ok": True, "alert_id": alert.id, "portfolio_value": crash_value, "peak_value": peak, "drawdown": drawdown_pct}
+
+
+# alias routes for frontend probe fallback
+@router.post("/simulate")
+async def simulate_alias(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    return await simulate_drawdown(payload, db)
+
+@router.post("/stress-test")
+async def stress_test_alias(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    return await simulate_drawdown(payload, db)
 
 
 @router.get("/alerts")
