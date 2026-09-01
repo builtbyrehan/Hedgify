@@ -3,12 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useDashboard } from '../context/DashboardContext'
 import StatusBadge from '../components/shared/StatusBadge'
 import EmptyState from '../components/shared/EmptyState'
+import Dropdown from '../components/shared/Dropdown'
 import type { Alert } from '../types'
 
 function formatTime(iso: string) {
   try {
-    const d = new Date(iso)
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+    return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
   } catch { return '--:--:--' }
 }
 
@@ -23,6 +23,12 @@ function timeAgo(iso: string) {
   if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   return `${Math.floor(diff / 3600000)}h ago`
+}
+
+function drawdownSeverity(dd: number) {
+  if (dd < 5) return { color: 'var(--color-severity-low)', label: 'Low' }
+  if (dd < 15) return { color: 'var(--color-severity-med)', label: 'Medium' }
+  return { color: 'var(--color-severity-high)', label: 'High' }
 }
 
 export default function AlertsPage() {
@@ -50,12 +56,8 @@ export default function AlertsPage() {
 
   const filteredAlerts = useMemo(() => {
     let result = [...alerts]
-    if (statusFilter !== 'all') {
-      result = result.filter(a => a.status === statusFilter)
-    }
-    if (symbolFilter !== 'all') {
-      result = result.filter(a => a.symbol === symbolFilter)
-    }
+    if (statusFilter !== 'all') result = result.filter(a => a.status === statusFilter)
+    if (symbolFilter !== 'all') result = result.filter(a => a.symbol === symbolFilter)
     result.sort((a, b) => {
       const da = new Date(a.timestamp).getTime()
       const db = new Date(b.timestamp).getTime()
@@ -76,149 +78,98 @@ export default function AlertsPage() {
     setRawJsonOpen(false)
   }
 
-  const cardClass = 'rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-5'
+  const statCards = [
+    { label: 'Total Alerts', value: stats.total, color: 'text-[var(--color-text-primary)]' },
+    { label: 'Processed', value: stats.processed, color: 'text-[var(--color-positive)]' },
+    { label: 'Skipped', value: stats.skipped, color: 'text-[var(--color-warning)]', sub: 'Idempotency guard active' },
+    { label: 'Failed', value: stats.failed, color: 'text-[var(--color-danger)]' },
+  ]
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className={cardClass}
-        >
-          <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-2">Total Alerts</div>
-          <div className="text-text-primary font-display font-black text-2xl sm:text-3xl">{stats.total}</div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
-          className={cardClass}
-        >
-          <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-2">Processed</div>
-          <div className="text-emerald-400 font-display font-black text-2xl sm:text-3xl">{stats.processed}</div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="rounded-2xl border border-gold/30 bg-gold/[0.06] backdrop-blur-sm p-5"
-        >
-          <div className="text-gold text-[10px] font-mono font-bold tracking-wider uppercase mb-2">Skipped / Idempotency</div>
-          <div className="text-gold font-display font-black text-2xl sm:text-3xl">{stats.skipped}</div>
-          <div className="text-gold/60 text-[10px] font-mono mt-1">duplicate guard active</div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-          className={cardClass}
-        >
-          <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-2">Failed</div>
-          <div className="text-danger font-display font-black text-2xl sm:text-3xl">{stats.failed}</div>
-        </motion.div>
+        {statCards.map((s, i) => (
+          <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: i * 0.03 }} className="card p-4">
+            <div className="label mb-1.5">{s.label}</div>
+            <div className={`text-[20px] font-semibold font-mono tabular-nums ${s.color}`}>{s.value}</div>
+            {s.sub && <div className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{s.sub}</div>}
+          </motion.div>
+        ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1.5 block">Status</label>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-white/[0.08] bg-white/[0.04] text-text-primary font-mono text-xs px-3 py-2 focus:outline-none focus:border-cyan/40 transition-colors appearance-none cursor-pointer"
-          >
-            <option value="all">All Statuses</option>
-            <option value="fired">Fired</option>
-            <option value="processed">Processed</option>
-            <option value="skipped">Skipped</option>
-            <option value="failed">Failed</option>
-          </select>
+          <label className="label mb-1.5 block">Status</label>
+          <Dropdown value={statusFilter} onChange={setStatusFilter} size="sm" options={[
+            { value: 'all', label: 'All Statuses' },
+            { value: 'fired', label: 'Fired' },
+            { value: 'processed', label: 'Processed' },
+            { value: 'skipped', label: 'Skipped' },
+            { value: 'failed', label: 'Failed' },
+          ]} />
         </div>
         <div>
-          <label className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1.5 block">Symbol</label>
-          <select
-            value={symbolFilter}
-            onChange={e => setSymbolFilter(e.target.value)}
-            className="rounded-xl border border-white/[0.08] bg-white/[0.04] text-text-primary font-mono text-xs px-3 py-2 focus:outline-none focus:border-cyan/40 transition-colors appearance-none cursor-pointer"
-          >
-            <option value="all">All Symbols</option>
-            {symbols.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <label className="label mb-1.5 block">Symbol</label>
+          <Dropdown value={symbolFilter} onChange={setSymbolFilter} size="sm" options={[
+            { value: 'all', label: 'All Symbols' },
+            ...symbols.map(s => ({ value: s, label: s })),
+          ]} />
         </div>
         <div className="ml-auto">
-          <label className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1.5 block">Sort</label>
-          <button
-            onClick={() => setSortDesc(prev => !prev)}
-            className="rounded-xl border border-white/[0.08] bg-white/[0.04] text-text-muted font-mono text-xs px-3 py-2 hover:bg-white/[0.06] hover:text-text-primary transition-colors flex items-center gap-1.5"
-          >
+          <label className="label mb-1.5 block">Sort</label>
+          <button onClick={() => setSortDesc(prev => !prev)} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text-secondary)] font-mono text-[12px] px-3 py-2 hover:bg-[var(--color-bg-hover)] transition-colors flex items-center gap-1.5">
             <span>Time</span>
-            <span className="text-cyan">{sortDesc ? '↓' : '↑'}</span>
+            <span className="text-[var(--color-text-primary)]">{sortDesc ? '↓' : '↑'}</span>
           </button>
         </div>
       </div>
 
-      {/* Alert History Table */}
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-6">
-        <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-4">Alert History</div>
-
+      <div className="card p-5">
+        <div className="label mb-4">Alert History</div>
         {filteredAlerts.length === 0 ? (
           <EmptyState context="alerts" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="text-left text-text-dim font-mono text-[10px] font-bold tracking-wider uppercase pb-3 pr-4">ID</th>
-                  <th className="text-left text-text-dim font-mono text-[10px] font-bold tracking-wider uppercase pb-3 pr-4">Time</th>
-                  <th className="text-left text-text-dim font-mono text-[10px] font-bold tracking-wider uppercase pb-3 pr-4">Symbol</th>
-                  <th className="text-left text-text-dim font-mono text-[10px] font-bold tracking-wider uppercase pb-3 pr-4">Drawdown</th>
-                  <th className="text-left text-text-dim font-mono text-[10px] font-bold tracking-wider uppercase pb-3 pr-4">Status</th>
-                  <th className="text-left text-text-dim font-mono text-[10px] font-bold tracking-wider uppercase pb-3">Action</th>
+                <tr className="border-b border-[var(--color-border)]">
+                  <th className="text-left label pb-2.5 pr-4 font-normal">ID</th>
+                  <th className="text-left label pb-2.5 pr-4 font-normal">Time</th>
+                  <th className="text-left label pb-2.5 pr-4 font-normal">Symbol</th>
+                  <th className="text-left label pb-2.5 pr-4 font-normal">Drawdown</th>
+                  <th className="text-left label pb-2.5 pr-4 font-normal">Status</th>
+                  <th className="text-left label pb-2.5 font-normal">Action</th>
                 </tr>
               </thead>
               <tbody>
                 <AnimatePresence>
-                  {filteredAlerts.map((alert, i) => (
-                    <motion.tr
-                      key={alert.id}
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2, delay: i * 0.02 }}
-                      className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
-                    >
-                      <td className="py-3 pr-4 font-mono text-text-dim text-xs">
-                        {typeof alert.id === 'string' ? alert.id.slice(0, 12) : `#${alert.id}`}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <div className="font-mono text-text-muted text-xs">{formatTime(alert.timestamp)}</div>
-                        <div className="font-mono text-text-dim text-[10px]">{timeAgo(alert.timestamp)}</div>
-                      </td>
-                      <td className="py-3 pr-4 font-display font-bold text-text-primary">{alert.symbol}</td>
-                      <td className="py-3 pr-4">
-                        <span className="font-mono text-danger font-bold">
-                          -{(alert.drawdown * 100).toFixed(2)}%
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4"><StatusBadge status={alert.status} /></td>
-                      <td className="py-3">
-                        <button
-                          onClick={() => openDetail(alert)}
-                          className="rounded-lg border border-cyan/20 bg-cyan/[0.06] text-cyan font-mono text-xs font-bold px-3 py-1.5 hover:bg-cyan/[0.12] hover:border-cyan/30 transition-all"
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </motion.tr>
-                  ))}
+                  {filteredAlerts.map((alert, i) => {
+                    const ddPct = (alert.drawdown ?? 0) * 100
+                    const sev = drawdownSeverity(ddPct)
+                    return (
+                      <motion.tr key={alert.id} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, delay: i * 0.015 }} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-bg-hover)] transition-colors">
+                        <td className="py-2.5 pr-4 font-mono text-[var(--color-text-tertiary)] text-[12px]">
+                          {typeof alert.id === 'string' ? alert.id.slice(0, 12) : `#${alert.id}`}
+                        </td>
+                        <td className="py-2.5 pr-4">
+                          <div className="font-mono text-[var(--color-text-secondary)] text-[12px]">{formatTime(alert.timestamp)}</div>
+                          <div className="font-mono text-[var(--color-text-tertiary)] text-[11px]">{timeAgo(alert.timestamp)}</div>
+                        </td>
+                        <td className="py-2.5 pr-4 font-medium text-[var(--color-text-primary)]">{alert.symbol}</td>
+                        <td className="py-2.5 pr-4">
+                          <span className="font-mono font-medium" style={{ color: sev.color }}>
+                            -{ddPct.toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-4"><StatusBadge status={alert.status} /></td>
+                        <td className="py-2.5">
+                          <button onClick={() => openDetail(alert)} className="text-[var(--color-text-secondary)] text-[12px] font-medium hover:text-[var(--color-text-primary)] transition-colors">
+                            View Details
+                          </button>
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
                 </AnimatePresence>
               </tbody>
             </table>
@@ -226,134 +177,106 @@ export default function AlertsPage() {
         )}
       </div>
 
-      {/* Alert Detail Modal */}
       <AnimatePresence>
         {modalOpen && selectedAlert && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-void/70 backdrop-blur-sm z-50"
-              onClick={closeModal}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg z-50 rounded-2xl border border-white/[0.08] bg-surface/95 backdrop-blur-xl shadow-2xl overflow-y-auto max-h-[90vh]"
-            >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="fixed inset-0 bg-black/20 z-50" onClick={closeModal} />
+            <motion.div initial={{ opacity: 0, scale: 0.97, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 12 }} transition={{ duration: 0.2 }} className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg z-50 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg overflow-y-auto max-h-[90vh]">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
                 <div>
-                  <div className="text-text-primary font-display font-bold text-sm">Alert Details</div>
-                  <div className="text-text-dim font-mono text-xs mt-0.5">{selectedAlert.symbol} — {formatDate(selectedAlert.timestamp)}</div>
+                  <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">Alert Details</div>
+                  <div className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{selectedAlert.symbol} — {formatDate(selectedAlert.timestamp)}</div>
                 </div>
-                <button
-                  onClick={closeModal}
-                  className="w-8 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-text-muted hover:text-text-primary transition-colors text-sm"
-                >
+                <button onClick={closeModal} className="w-7 h-7 rounded-md bg-[var(--color-bg-hover)] hover:bg-[var(--color-border)] flex items-center justify-center text-[var(--color-text-secondary)] transition-colors text-[13px]">
                   ✕
                 </button>
               </div>
-
-              {/* Modal Body */}
-              <div className="px-6 py-5 space-y-5">
-                {/* Key Metrics Grid */}
+              <div className="px-5 py-4 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                    <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1">Alert ID</div>
-                    <div className="text-text-primary font-mono text-xs break-all">
+                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
+                    <div className="label mb-1">Alert ID</div>
+                    <div className="text-[12px] font-mono text-[var(--color-text-primary)] break-all">
                       {typeof selectedAlert.id === 'string' ? selectedAlert.id : `#${selectedAlert.id}`}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                    <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1">Triggered At</div>
-                    <div className="text-text-primary font-mono text-xs">{formatTime(selectedAlert.timestamp)}</div>
-                    <div className="text-text-dim font-mono text-[10px]">{timeAgo(selectedAlert.timestamp)}</div>
+                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
+                    <div className="label mb-1">Triggered At</div>
+                    <div className="text-[12px] font-mono text-[var(--color-text-primary)]">{formatTime(selectedAlert.timestamp)}</div>
+                    <div className="text-[11px] text-[var(--color-text-tertiary)]">{timeAgo(selectedAlert.timestamp)}</div>
                   </div>
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                    <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1">Portfolio Value</div>
-                    <div className="text-text-primary font-display font-bold text-sm">
+                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
+                    <div className="label mb-1">Portfolio Value</div>
+                    <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                       ${(portfolio?.portfolio_value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                    <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1">Peak Value</div>
-                    <div className="text-text-primary font-display font-bold text-sm">
+                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
+                    <div className="label mb-1">Peak Value</div>
+                    <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                       ${(portfolio?.peak_value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
                 </div>
 
-                {/* Drawdown */}
-                <div className="rounded-xl border border-danger/20 bg-danger/[0.04] p-4">
-                  <div className="text-danger text-[10px] font-mono font-bold tracking-wider uppercase mb-1">Drawdown at Trigger</div>
-                  <div className="text-danger font-display font-black text-3xl">
-                    -{(selectedAlert.drawdown * 100).toFixed(2)}%
-                  </div>
-                  <div className="text-danger/60 text-[10px] font-mono mt-1">threshold breached (≥2.00%)</div>
-                </div>
+                {(() => {
+                  const ddPct = (selectedAlert.drawdown ?? 0) * 100
+                  const sev = drawdownSeverity(ddPct)
+                  return (
+                    <div className="rounded-lg border p-4" style={{ borderColor: `${sev.color}33`, backgroundColor: `${sev.color}08` }}>
+                      <div className="label mb-1" style={{ color: sev.color }}>Drawdown at Trigger</div>
+                      <div className="text-[22px] font-semibold font-mono tabular-nums" style={{ color: sev.color }}>
+                        -{ddPct.toFixed(2)}%
+                      </div>
+                      <div className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{sev.label} severity — threshold breached</div>
+                    </div>
+                  )
+                })()}
 
-                {/* Status */}
-                <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
                   <div>
-                    <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1">Status</div>
+                    <div className="label mb-1">Status</div>
                     <StatusBadge status={selectedAlert.status} />
                   </div>
                   <div className="text-right">
-                    <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-1">Symbol</div>
-                    <div className="text-text-primary font-display font-bold">{selectedAlert.symbol}</div>
+                    <div className="label mb-1">Symbol</div>
+                    <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">{selectedAlert.symbol}</div>
                   </div>
                 </div>
 
-                {/* Hedge Result */}
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                  <div className="text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase mb-2">Hedge Result</div>
+                <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
+                  <div className="label mb-2">Hedge Result</div>
                   {selectedAlert.status === 'processed' ? (
-                    <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div className="flex items-center gap-2 text-[var(--color-positive)] text-[12px] font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-positive)]" />
                       Protective put placed — 5% OTM, 14-day expiry
                     </div>
                   ) : selectedAlert.status === 'skipped' ? (
-                    <div className="flex items-center gap-2 text-gold font-mono text-xs">
-                      <span className="w-2 h-2 rounded-full bg-gold" />
+                    <div className="flex items-center gap-2 text-[var(--color-warning)] text-[12px] font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)]" />
                       Idempotency guard — duplicate alert skipped
                     </div>
                   ) : selectedAlert.status === 'failed' ? (
-                    <div className="flex items-center gap-2 text-danger font-mono text-xs">
-                      <span className="w-2 h-2 rounded-full bg-danger" />
+                    <div className="flex items-center gap-2 text-[var(--color-danger)] text-[12px] font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-danger)]" />
                       Order failed — broker rejected or insufficient funds
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 text-text-muted font-mono text-xs">
-                      <span className="w-2 h-2 rounded-full bg-text-dim" />
+                    <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] text-[12px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-tertiary)]" />
                       Pending processing...
                     </div>
                   )}
                 </div>
 
-                {/* Raw JSON */}
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                  <button
-                    onClick={() => setRawJsonOpen(prev => !prev)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 text-text-dim text-[10px] font-mono font-bold tracking-wider uppercase hover:text-text-muted transition-colors"
-                  >
+                <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)]">
+                  <button onClick={() => setRawJsonOpen(prev => !prev)} className="w-full flex items-center justify-between px-3 py-2.5 label hover:text-[var(--color-text-primary)] transition-colors">
                     <span>Raw JSON</span>
-                    <span className="text-text-dim">{rawJsonOpen ? '▾' : '▸'}</span>
+                    <span className="text-[var(--color-text-tertiary)]">{rawJsonOpen ? '▾' : '▸'}</span>
                   </button>
                   <AnimatePresence>
                     {rawJsonOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <pre className="px-3 pb-3 font-mono text-[11px] text-text-muted leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
+                        <pre className="px-3 pb-3 font-mono text-[11px] text-[var(--color-text-secondary)] leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
                           {JSON.stringify(selectedAlert, null, 2)}
                         </pre>
                       </motion.div>

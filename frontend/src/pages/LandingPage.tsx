@@ -123,7 +123,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[var(--color-bg-void)] text-[var(--color-text-primary)] font-[var(--font-body)] overflow-x-hidden">
 
       {/* ── NAV ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[var(--color-bg-void)]/70 border-b border-white/[0.06]">
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[var(--color-bg-void)]/70 border-b border-[var(--color-border)]">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-14">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--color-accent-cyan)] to-[var(--color-accent-violet)] flex items-center justify-center font-[var(--font-display)] font-bold text-xs text-[var(--color-bg-void)]">h</div>
@@ -218,7 +218,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── MARQUEE ── */}
-      <div className="py-8 overflow-hidden border-y border-white/[0.04]">
+      <div className="py-8 overflow-hidden border-y border-[var(--color-border)]">
         <div className="marquee-track">
           {[...marqueeItems, ...marqueeItems].map((item, i) => (
             <span key={i} className={`mx-4 text-sm whitespace-nowrap ${item === '✦' ? 'text-[var(--color-accent-cyan)]' : 'text-[var(--color-text-dim)] font-mono lowercase'}`}>
@@ -237,7 +237,7 @@ export default function LandingPage() {
                 {/* Copy side */}
                 <div>
                   <div className="section-num">{f.num}</div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-[10px] font-mono font-bold tracking-wider text-[var(--color-text-muted)] uppercase mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[10px] font-mono font-bold tracking-wider text-[var(--color-text-muted)] uppercase mb-4">
                     <span>{f.emoji}</span> {f.tag}
                   </div>
                   <h3 className="font-[var(--font-display)] text-2xl sm:text-3xl font-bold mb-3 leading-tight lowercase">{f.title}</h3>
@@ -280,7 +280,7 @@ export default function LandingPage() {
           </FadeIn>
           <div className="grid md:grid-cols-2 gap-6">
             <FadeIn delay={0.1}>
-              <div className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-8">
+              <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-8">
                 <div className="text-xs font-mono font-bold text-[var(--color-accent-danger)] mb-3 tracking-wider lowercase">the old way ✕</div>
                 <h3 className="font-[var(--font-display)] text-xl font-bold mb-4 lowercase">stop-loss orders</h3>
                 <ul className="space-y-3 text-sm text-[var(--color-text-muted)]">
@@ -320,7 +320,7 @@ export default function LandingPage() {
             ].map((s, i) => (
               <FadeIn key={s.step} delay={i * 0.12}>
                 <div className="text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-3xl mb-5 mx-auto">{s.icon}</div>
+                  <div className="w-16 h-16 rounded-2xl bg-[var(--color-bg-card)] border border-[var(--color-border)] flex items-center justify-center text-3xl mb-5 mx-auto">{s.icon}</div>
                   <div className="section-num justify-center">{s.step}</div>
                   <h3 className="font-[var(--font-display)] text-xl font-bold mb-2 lowercase">{s.title}</h3>
                   <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">{s.desc}</p>
@@ -340,7 +340,7 @@ export default function LandingPage() {
           <FadeIn delay={0.1}>
             <div className="flex flex-wrap justify-center gap-5">
               {techStack.map(t => (
-                <div key={t.name} className="px-7 py-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] hover:border-white/[0.12] transition-colors">
+                <div key={t.name} className="px-7 py-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-border)] transition-colors">
                   <div className="font-mono font-bold text-base text-[var(--color-accent-cyan)] lowercase">{t.name}</div>
                   <div className="text-xs text-[var(--color-text-dim)] mt-1">{t.desc}</div>
                 </div>
@@ -364,7 +364,7 @@ export default function LandingPage() {
               { tier: 'growth', price: '$49', period: '/mo', desc: 'for active traders', features: ['10 portfolios', 'all trading modes', 'advanced analytics', 'priority support', 'unlimited puts', 'custom thresholds'], highlight: true },
             ].map(p => (
               <FadeIn key={p.tier} delay={p.highlight ? 0.15 : 0.1}>
-                <div className={`rounded-3xl p-7 ${p.highlight ? 'border-2 border-[var(--color-accent-gold)]/40 bg-[var(--color-accent-gold)]/[0.04] relative' : 'border border-white/[0.06] bg-white/[0.03]'}`}>
+                <div className={`rounded-3xl p-7 ${p.highlight ? 'border-2 border-[var(--color-accent-gold)]/40 bg-[var(--color-accent-gold)]/[0.04] relative' : 'border border-[var(--color-border)] bg-[var(--color-bg-card)]'}`}>
                   {p.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[var(--color-accent-gold)] text-[var(--color-bg-void)] text-[10px] font-mono font-bold tracking-wider uppercase">most popular</div>}
                   <div className="text-xs font-mono font-bold text-[var(--color-text-muted)] tracking-wider lowercase mb-2">{p.tier}</div>
                   <div className="flex items-baseline gap-1 mb-1">
@@ -423,7 +423,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="py-8 px-6 border-t border-white/[0.06]">
+      <footer className="py-8 px-6 border-t border-[var(--color-border)]">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-5 h-5 rounded bg-gradient-to-br from-[var(--color-accent-cyan)] to-[var(--color-accent-violet)] flex items-center justify-center font-bold text-[8px] text-[var(--color-bg-void)]">h</div>
