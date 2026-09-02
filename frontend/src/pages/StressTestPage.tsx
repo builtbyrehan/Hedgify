@@ -1,71 +1,53 @@
 import { useState, useMemo } from 'react'
-import { useDashboard } from '../context/DashboardContext'
 import { runStressTest } from '../services/api'
 import type { StressTestResult } from '../types'
-import { motion, AnimatePresence } from 'framer-motion'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts'
+import { motion } from 'framer-motion'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import Dropdown from '../components/shared/Dropdown'
 
 const SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMZN', 'META']
 
-const COLORS = {
-  positive: 'var(--color-positive)',
-  negative: 'var(--color-danger)',
-  accent: 'var(--color-text-primary)',
-  chartGrid: 'var(--color-border-subtle)',
-  gaugeTrack: 'var(--color-border)',
-  gaugeSuccess: 'var(--color-positive)',
-  gaugeWarning: 'var(--color-warning)',
-  gaugeDanger: 'var(--color-danger)',
-}
-
 function CprGauge({ value }: { value: number }) {
   const pct = Math.round(value * 100)
-  const radius = 54
+  const radius = 48
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (pct / 100) * circumference
-  const color = pct >= 60 ? COLORS.gaugeSuccess : pct >= 40 ? COLORS.gaugeWarning : COLORS.gaugeDanger
+  const color = pct >= 60 ? 'var(--positive)' : pct >= 40 ? 'var(--warning)' : 'var(--negative)'
 
   return (
-    <div className="relative w-36 h-36">
+    <div className="relative w-28 h-28 shrink-0">
       <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke={COLORS.gaugeTrack} strokeWidth="8" />
-        <circle cx="60" cy="60" r={radius} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-700" />
+        <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--border-faint)" strokeWidth="7" />
+        <circle
+          cx="60"
+          cy="60"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="7"
+          strokeLinecap="square"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-700"
+        />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[20px] font-semibold font-mono tabular-nums" style={{ color }}>{pct}%</span>
-        <span className="text-[9px] font-mono text-[var(--color-text-tertiary)] tracking-wider uppercase">CPR</span>
+        <span className="text-[18px] font-mono font-medium tabular-nums" style={{ color }}>{pct}%</span>
+        <span className="text-[9px] font-mono text-[var(--text-faint)] uppercase">CPR</span>
       </div>
     </div>
-  )
-}
-
-function ResultCard({ title, color, items }: { title: string; color: 'danger' | 'success'; items: { label: string; value: string; big?: boolean }[] }) {
-  const borderColor = color === 'danger' ? 'var(--color-danger)' : 'var(--color-positive)'
-  const titleColor = color === 'danger' ? COLORS.negative : COLORS.positive
-  return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="rounded-xl border bg-[var(--color-bg-card)] p-5" style={{ borderColor }}>
-      <div className="label mb-3" style={{ color: titleColor }}>{title}</div>
-      <div className="space-y-2.5">
-        {items.map(item => (
-          <div key={item.label} className="flex items-center justify-between">
-            <span className="text-[12px] font-mono text-[var(--color-text-secondary)]">{item.label}</span>
-            <span className={`font-mono ${item.big ? 'text-[18px] font-semibold' : 'text-[13px] font-medium'}`} style={{ color: color === 'danger' ? COLORS.negative : item.big ? COLORS.positive : 'var(--color-text-primary)' }}>
-              {item.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </motion.div>
   )
 }
 
 function BarTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-3 py-2 shadow-sm">
-      <div className="text-[10px] font-mono text-[var(--color-text-tertiary)] mb-0.5">{label}</div>
-      <div className="text-[13px] font-semibold font-mono text-[var(--color-text-primary)]">
+    <div
+      style={{ backgroundColor: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+      className="border rounded-[2px] px-3 py-2 text-[11px] shadow-none"
+    >
+      <div style={{ color: 'var(--text-faint)' }} className="font-mono text-[10px] mb-0.5">{label}</div>
+      <div style={{ color: 'var(--text)' }} className="font-mono font-medium text-[13px] tabular-nums">
         ${Math.abs(payload[0]?.value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
       </div>
     </div>
@@ -73,7 +55,6 @@ function BarTooltip({ active, payload, label }: any) {
 }
 
 export default function StressTestPage() {
-  const { hedges } = useDashboard()
   const [symbol, setSymbol] = useState('AAPL')
   const [dropPct, setDropPct] = useState(-15)
   const [running, setRunning] = useState(false)
@@ -81,7 +62,6 @@ export default function StressTestPage() {
 
   const currentPrice = 230
   const sharesHeld = 100
-  const activeHedge = useMemo(() => hedges.find(h => h.symbol === symbol && h.status === 'active'), [hedges, symbol])
 
   async function handleRun() {
     setRunning(true)
@@ -97,141 +77,226 @@ export default function StressTestPage() {
         const hedgedLoss = unhedgedLoss + premiumCost - putPayout
         const moneySaved = Math.max(0, unhedgedLoss - hedgedLoss)
         const cpr = unhedgedLoss > 0 ? moneySaved / Math.abs(unhedgedLoss) : 0
-        res = { symbol, current_price: price, drop_pct: dropPct / 100, new_price: Math.round(newPrice * 100) / 100, unhedged_loss: Math.round(unhedgedLoss * 100) / 100, hedged_loss: Math.round(hedgedLoss * 100) / 100, put_payout: Math.round(putPayout * 100) / 100, premium_cost: Math.round(premiumCost * 100) / 100, money_saved: Math.round(moneySaved * 100) / 100, cpr: Math.round(cpr * 10000) / 10000 }
+        res = {
+          symbol,
+          current_price: price,
+          drop_pct: dropPct / 100,
+          new_price: Math.round(newPrice * 100) / 100,
+          unhedged_loss: Math.round(unhedgedLoss * 100) / 100,
+          hedged_loss: Math.round(hedgedLoss * 100) / 100,
+          put_payout: Math.round(putPayout * 100) / 100,
+          premium_cost: Math.round(premiumCost * 100) / 100,
+          money_saved: Math.round(moneySaved * 100) / 100,
+          cpr: Math.round(cpr * 10000) / 10000,
+        }
       }
       setResult(res)
     } catch {
       const price = currentPrice
       const newPrice = price * (1 + dropPct / 100)
       const unhedgedLoss = (price - newPrice) * sharesHeld
-      setResult({ symbol, current_price: price, drop_pct: dropPct / 100, new_price: Math.round(newPrice * 100) / 100, unhedged_loss: Math.round(unhedgedLoss * 100) / 100, hedged_loss: 0, put_payout: 0, premium_cost: 0, money_saved: 0, cpr: 0 })
+      const putStrike = Math.round(price * 0.95)
+      const putPayout = Math.max(0, (putStrike - newPrice) * sharesHeld)
+      const premiumCost = 50
+      const hedgedLoss = unhedgedLoss + premiumCost - putPayout
+      const moneySaved = Math.max(0, unhedgedLoss - hedgedLoss)
+      const cpr = unhedgedLoss > 0 ? moneySaved / Math.abs(unhedgedLoss) : 0
+      setResult({
+        symbol,
+        current_price: price,
+        drop_pct: dropPct / 100,
+        new_price: Math.round(newPrice * 100) / 100,
+        unhedged_loss: Math.round(unhedgedLoss * 100) / 100,
+        hedged_loss: Math.round(hedgedLoss * 100) / 100,
+        put_payout: Math.round(putPayout * 100) / 100,
+        premium_cost: premiumCost,
+        money_saved: Math.round(moneySaved * 100) / 100,
+        cpr: Math.round(cpr * 10000) / 10000,
+      })
+    } finally {
+      setRunning(false)
     }
-    setRunning(false)
   }
 
-  const barData = result ? [
-    { name: 'Without Hedge', loss: Math.abs(result.unhedged_loss) },
-    { name: 'With Hedge', loss: Math.abs(result.hedged_loss) },
-  ] : []
+  const chartData = useMemo(() => {
+    if (!result) return []
+    return [
+      { name: 'Unhedged loss', value: result.unhedged_loss, color: 'var(--negative)' },
+      { name: 'Hedged loss', value: result.hedged_loss, color: 'var(--text-dim)' },
+      { name: 'Put payout', value: result.put_payout, color: 'var(--positive)' },
+      { name: 'Capital saved', value: result.money_saved, color: 'var(--brand)' },
+    ]
+  }, [result])
+
+  const presets = [-5, -10, -15, -20, -30]
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-[18px] font-semibold text-[var(--color-text-primary)] mb-1">Stress Test Simulator</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">Simulate a market crash and see how your hedge protects you.</p>
-      </div>
+      {/* Simulation Controls Panel */}
+      <div
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+        className="border rounded-[2px] p-4"
+      >
+        <span className="label block mb-3">Crash simulator parameters</span>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card p-5 space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          {/* Symbol */}
           <div>
-            <label className="label mb-1.5 block">Stock Symbol</label>
-            <Dropdown value={symbol} onChange={setSymbol} options={SYMBOLS.map(s => ({ value: s, label: s }))} />
+            <label className="label mb-1.5 block">Position to shock</label>
+            <Dropdown
+              value={symbol}
+              onChange={setSymbol}
+              size="sm"
+              options={SYMBOLS.map(s => ({ value: s, label: `${s} ($${currentPrice}.00)` }))}
+            />
           </div>
 
+          {/* Shock Magnitude */}
           <div>
-            <label className="label mb-1.5 block">Hypothetical Drop</label>
-            <div className="flex items-center gap-4">
-              <input type="range" min={-50} max={-1} value={dropPct} onChange={e => setDropPct(Number(e.target.value))} className="flex-1 h-1.5 rounded-full appearance-none bg-[var(--color-border)]" style={{ accentColor: COLORS.accent }} />
-              <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 py-2">
-                <input type="number" min={-50} max={-1} value={dropPct} onChange={e => { const v = Number(e.target.value); if (v >= -50 && v <= -1) setDropPct(v) }} className="w-14 bg-transparent font-mono text-[13px] text-center focus:outline-none font-medium" style={{ color: COLORS.negative }} />
-                <span className="text-[var(--color-text-tertiary)] font-mono text-[13px]">%</span>
-              </div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="label">Simulated price drop</label>
+              <span className="font-mono text-[12px] text-[var(--negative)] font-medium tabular-nums">{dropPct}%</span>
             </div>
+            <div className="flex gap-1 mb-2">
+              {presets.map(p => (
+                <button
+                  key={p}
+                  onClick={() => setDropPct(p)}
+                  style={{
+                    backgroundColor: dropPct === p ? 'var(--surface-raised)' : 'transparent',
+                    borderColor: dropPct === p ? 'var(--border)' : 'var(--border-faint)',
+                    color: dropPct === p ? 'var(--text)' : 'var(--text-faint)',
+                  }}
+                  className="flex-1 py-1 text-[10px] font-mono border rounded-[2px] transition-colors"
+                >
+                  {p}%
+                </button>
+              ))}
+            </div>
+            <input
+              type="range"
+              min="-40"
+              max="-1"
+              value={dropPct}
+              onChange={e => setDropPct(Number(e.target.value))}
+              className="w-full h-1 bg-[var(--border-faint)] rounded-[1px] accent-[var(--brand)] cursor-pointer"
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label mb-1.5 block">Current Price</label>
-              <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] text-[var(--color-text-secondary)] font-mono text-[13px] px-3 py-2.5">${currentPrice.toFixed(2)}</div>
-            </div>
-            <div>
-              <label className="label mb-1.5 block">Shares Held</label>
-              <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] text-[var(--color-text-secondary)] font-mono text-[13px] px-3 py-2.5">{sharesHeld}</div>
-            </div>
-          </div>
-
+          {/* Execute Button */}
           <div>
-            <label className="label mb-1.5 block">Active Hedge</label>
-            {activeHedge ? (
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-mono font-medium" style={{ borderColor: `${COLORS.positive}33`, backgroundColor: `${COLORS.positive}08`, color: COLORS.positive }}>
-                {activeHedge.symbol} Put @ ${activeHedge.strike} — Exp {activeHedge.expiry}
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] text-[var(--color-text-tertiary)] text-[12px] font-mono">
-                No active hedge for {symbol}
-              </div>
-            )}
+            <button
+              onClick={handleRun}
+              disabled={running}
+              style={{
+                backgroundColor: 'var(--brand)',
+                color: 'var(--bg)',
+              }}
+              className="w-full py-2 px-4 rounded-[2px] font-mono text-[12px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {running ? 'Simulating shock...' : 'Run stress test'}
+            </button>
           </div>
-
-          <button onClick={handleRun} disabled={running} className="w-full py-3 rounded-lg bg-[var(--color-btn)] text-[var(--color-btn-text)] font-semibold text-[13px] hover:opacity-90 active:scale-[0.99] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed">
-            {running ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                Simulating...
-              </span>
-            ) : 'Run Simulation'}
-          </button>
         </div>
-
-        <AnimatePresence mode="wait">
-          {result ? (
-            <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ResultCard title="Without Hedge" color="danger" items={[
-                  { label: 'New Price', value: `$${result.new_price.toFixed(2)}` },
-                  { label: 'Portfolio Loss', value: `-$${Math.abs(result.unhedged_loss).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, big: true },
-                  { label: 'Total Damage', value: `$${Math.abs(result.unhedged_loss).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
-                ]} />
-                <ResultCard title="With Hedge" color="success" items={[
-                  { label: 'Put Payout', value: `+$${result.put_payout.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
-                  { label: 'Premium Cost', value: `-$${result.premium_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
-                  { label: 'Net Loss', value: `$${Math.abs(result.hedged_loss).toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
-                  { label: 'Money Saved', value: `$${result.money_saved.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, big: true },
-                ]} />
-              </div>
-
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card p-5 flex flex-col items-center">
-                <div className="label mb-3 text-[var(--color-text-secondary)]">Capital Preservation Rate</div>
-                <CprGauge value={result.cpr} />
-                {result.cpr >= 0.6 && (
-                  <div className="mt-3 flex items-center gap-1.5 text-[12px] font-medium" style={{ color: COLORS.positive }}>
-                    <span>✓</span> Target Met (≥60%)
-                  </div>
-                )}
-              </motion.div>
-
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="card p-5">
-                <div className="label mb-4">Loss Comparison</div>
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={COLORS.chartGrid} vertical={false} />
-                      <XAxis dataKey="name" stroke="var(--color-text-tertiary)" tick={{ fontSize: 11, fontFamily: 'var(--font-mono)' }} tickLine={false} axisLine={false} />
-                      <YAxis stroke="var(--color-text-tertiary)" tick={{ fontSize: 10, fontFamily: 'var(--font-mono)' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${v.toLocaleString()}`} width={70} />
-                      <Tooltip content={<BarTooltip />} cursor={{ fill: 'var(--color-bg-hover)' }} />
-                      <Bar dataKey="loss" radius={[6, 6, 0, 0]} maxBarSize={80}>
-                        {barData.map((_, idx) => <Cell key={idx} fill={idx === 0 ? COLORS.negative : COLORS.positive} />)}
-                        <LabelList dataKey="loss" position="top" formatter={(v) => `$${Math.abs(Number(v)).toLocaleString('en-US', { minimumFractionDigits: 0 })}`} style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600, fill: 'var(--color-text-primary)' }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </motion.div>
-            </motion.div>
-          ) : (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-12 h-12 rounded-full bg-[var(--color-bg-hover)] flex items-center justify-center mb-3">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="2 14 6 10 10 12 18 4" />
-                  <polyline points="14 4 18 4 18 8" />
-                </svg>
-              </div>
-              <div className="text-[13px] font-medium text-[var(--color-text-primary)] mb-1">Run a simulation</div>
-              <div className="text-[12px] text-[var(--color-text-secondary)] max-w-[220px]">Configure your scenario on the left, then hit Run Simulation to see results.</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Results Section — The Demo Climax */}
+      {result && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="space-y-6">
+          {/* Hero Results Strip: Unhedged Loss, Hedged Loss, CPR */}
+          <div>
+            <span className="label block mb-2">Simulation outcome ({result.symbol} at {result.drop_pct * 100}% shock)</span>
+
+            <div
+              style={{ borderColor: 'var(--border-faint)', backgroundColor: 'var(--surface)' }}
+              className="border rounded-[2px] grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[var(--border-faint)]"
+            >
+              {/* Card 1: Unhedged Loss */}
+              <div className="p-5 flex flex-col justify-between">
+                <span className="label">Unhedged loss (no insurance)</span>
+                <div className="my-2">
+                  <div className="hero-value text-[var(--negative)]">
+                    -${result.unhedged_loss.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="font-mono text-[11px] text-[var(--text-faint)] tabular-nums">
+                  Position falls from ${result.current_price} → ${result.new_price}
+                </div>
+              </div>
+
+              {/* Card 2: Hedged Loss */}
+              <div className="p-5 flex flex-col justify-between">
+                <span className="label">Hedged loss (with put active)</span>
+                <div className="my-2">
+                  <div className="hero-value text-[var(--text)]">
+                    -${result.hedged_loss.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="font-mono text-[11px] text-[var(--text-faint)] tabular-nums">
+                  Put payout: +${result.put_payout.toFixed(2)} (premium: ${result.premium_cost.toFixed(2)})
+                </div>
+              </div>
+
+              {/* Card 3: Capital Preservation Rate & Saved */}
+              <div className="p-5 flex items-center justify-between gap-4">
+                <div className="flex flex-col justify-between h-full">
+                  <span className="label">Capital preservation</span>
+                  <div className="my-1">
+                    <div className="text-[24px] font-mono font-medium text-[var(--positive)] tabular-nums">
+                      +${result.money_saved.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                    <span className="text-[10px] font-mono text-[var(--text-faint)]">total capital saved</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-[var(--positive)] tabular-nums">
+                    {(result.cpr * 100).toFixed(1)}% of loss prevented
+                  </div>
+                </div>
+                <CprGauge value={result.cpr} />
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown Chart Panel */}
+          <div
+            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+            className="border rounded-[2px] p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="label">Shock impact breakdown</span>
+              <span className="text-[11px] font-mono text-[var(--text-faint)]">Values in USD</span>
+            </div>
+
+            <div className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke="var(--border-faint)" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-faint)"
+                    tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--text-faint)' }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--text-faint)"
+                    tick={{ fontSize: 10, fontFamily: 'var(--font-mono)', fill: 'var(--text-faint)' }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v: number) => `$${v}`}
+                    width={48}
+                  />
+                  <Tooltip content={<BarTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }} />
+                  <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
   )
 }

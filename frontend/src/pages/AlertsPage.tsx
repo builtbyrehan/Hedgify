@@ -20,19 +20,19 @@ function formatDate(iso: string) {
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
-  if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`
+  if (diff < 60000) return `${Math.max(1, Math.floor(diff / 1000))}s ago`
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   return `${Math.floor(diff / 3600000)}h ago`
 }
 
 function drawdownSeverity(dd: number) {
-  if (dd < 5) return { color: 'var(--color-severity-low)', label: 'Low' }
-  if (dd < 15) return { color: 'var(--color-severity-med)', label: 'Medium' }
-  return { color: 'var(--color-severity-high)', label: 'High' }
+  if (dd < 2) return { color: 'var(--positive)', label: 'nominal' }
+  if (dd < 5) return { color: 'var(--warning)', label: 'elevated' }
+  return { color: 'var(--negative)', label: 'critical' }
 }
 
 export default function AlertsPage() {
-  const { alerts, portfolio } = useDashboard()
+  const { alerts } = useDashboard()
 
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [symbolFilter, setSymbolFilter] = useState<string>('all')
@@ -78,214 +78,219 @@ export default function AlertsPage() {
     setRawJsonOpen(false)
   }
 
-  const statCards = [
-    { label: 'Total Alerts', value: stats.total, color: 'text-[var(--color-text-primary)]' },
-    { label: 'Processed', value: stats.processed, color: 'text-[var(--color-positive)]' },
-    { label: 'Skipped', value: stats.skipped, color: 'text-[var(--color-warning)]', sub: 'Idempotency guard active' },
-    { label: 'Failed', value: stats.failed, color: 'text-[var(--color-danger)]' },
+  const statItems = [
+    { label: 'Total alerts', value: stats.total, color: 'text-[var(--text)]' },
+    { label: 'Processed', value: stats.processed, color: 'text-[var(--positive)]' },
+    { label: 'Skipped', value: stats.skipped, color: 'text-[var(--warning)]', sub: 'Idempotency guard active' },
+    { label: 'Failed', value: stats.failed, color: 'text-[var(--negative)]' },
   ]
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: i * 0.03 }} className="card p-4">
-            <div className="label mb-1.5">{s.label}</div>
-            <div className={`text-[20px] font-semibold font-mono tabular-nums ${s.color}`}>{s.value}</div>
-            {s.sub && <div className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{s.sub}</div>}
-          </motion.div>
+      {/* Metric Summary Strip */}
+      <div
+        style={{ borderColor: 'var(--border-faint)', backgroundColor: 'var(--surface)' }}
+        className="border rounded-[2px] grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-faint)]"
+      >
+        {statItems.map((s) => (
+          <div key={s.label} className="p-4 flex flex-col justify-between">
+            <span className="label">{s.label}</span>
+            <div className={`mt-2 text-[20px] font-mono font-medium tabular-nums ${s.color}`}>
+              {s.value}
+            </div>
+            {s.sub ? (
+              <span className="text-[10px] font-mono text-[var(--text-faint)] mt-1">{s.sub}</span>
+            ) : (
+              <span className="text-[10px] font-mono text-[var(--text-faint)] mt-1">all time</span>
+            )}
+          </div>
         ))}
       </div>
 
+      {/* Filter Bar */}
       <div className="flex flex-wrap items-end gap-3">
-        <div>
+        <div className="w-40">
           <label className="label mb-1.5 block">Status</label>
-          <Dropdown value={statusFilter} onChange={setStatusFilter} size="sm" options={[
-            { value: 'all', label: 'All Statuses' },
-            { value: 'fired', label: 'Fired' },
-            { value: 'processed', label: 'Processed' },
-            { value: 'skipped', label: 'Skipped' },
-            { value: 'failed', label: 'Failed' },
-          ]} />
+          <Dropdown
+            value={statusFilter}
+            onChange={setStatusFilter}
+            size="sm"
+            options={[
+              { value: 'all', label: 'All statuses' },
+              { value: 'fired', label: 'Fired' },
+              { value: 'processed', label: 'Processed' },
+              { value: 'skipped', label: 'Skipped' },
+              { value: 'failed', label: 'Failed' },
+            ]}
+          />
         </div>
-        <div>
+
+        <div className="w-36">
           <label className="label mb-1.5 block">Symbol</label>
-          <Dropdown value={symbolFilter} onChange={setSymbolFilter} size="sm" options={[
-            { value: 'all', label: 'All Symbols' },
-            ...symbols.map(s => ({ value: s, label: s })),
-          ]} />
+          <Dropdown
+            value={symbolFilter}
+            onChange={setSymbolFilter}
+            size="sm"
+            options={[
+              { value: 'all', label: 'All symbols' },
+              ...symbols.map(s => ({ value: s, label: s })),
+            ]}
+          />
         </div>
+
         <div className="ml-auto">
-          <label className="label mb-1.5 block">Sort</label>
-          <button onClick={() => setSortDesc(prev => !prev)} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text-secondary)] font-mono text-[12px] px-3 py-2 hover:bg-[var(--color-bg-hover)] transition-colors flex items-center gap-1.5">
-            <span>Time</span>
-            <span className="text-[var(--color-text-primary)]">{sortDesc ? '↓' : '↑'}</span>
+          <button
+            onClick={() => setSortDesc(p => !p)}
+            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-[2px] border font-mono text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+          >
+            <span>Time: {sortDesc ? 'Newest first' : 'Oldest first'}</span>
+            <span className="text-[10px]">{sortDesc ? '↓' : '↑'}</span>
           </button>
         </div>
       </div>
 
-      <div className="card p-5">
-        <div className="label mb-4">Alert History</div>
+      {/* Alerts Table Panel */}
+      <div
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+        className="border rounded-[2px] p-4"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <span className="label">Alert event log</span>
+          <span className="font-mono text-[11px] text-[var(--text-faint)] tabular-nums">
+            {filteredAlerts.length} filtered
+          </span>
+        </div>
+
         {filteredAlerts.length === 0 ? (
           <EmptyState context="alerts" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-left text-[12px]">
               <thead>
-                <tr className="border-b border-[var(--color-border)]">
-                  <th className="text-left label pb-2.5 pr-4 font-normal">ID</th>
-                  <th className="text-left label pb-2.5 pr-4 font-normal">Time</th>
-                  <th className="text-left label pb-2.5 pr-4 font-normal">Symbol</th>
-                  <th className="text-left label pb-2.5 pr-4 font-normal">Drawdown</th>
-                  <th className="text-left label pb-2.5 pr-4 font-normal">Status</th>
-                  <th className="text-left label pb-2.5 font-normal">Action</th>
+                <tr style={{ borderColor: 'var(--border-faint)' }} className="border-b">
+                  <th className="label pb-2 pr-4 font-normal">Timestamp</th>
+                  <th className="label pb-2 pr-4 font-normal">Symbol</th>
+                  <th className="label pb-2 pr-4 font-normal">Drawdown</th>
+                  <th className="label pb-2 pr-4 font-normal">Status</th>
+                  <th className="label pb-2 pr-4 font-normal">Reason / details</th>
+                  <th className="label pb-2 font-normal text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
-                <AnimatePresence>
-                  {filteredAlerts.map((alert, i) => {
-                    const ddPct = (alert.drawdown ?? 0) * 100
-                    const sev = drawdownSeverity(ddPct)
-                    return (
-                      <motion.tr key={alert.id} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, delay: i * 0.015 }} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-bg-hover)] transition-colors">
-                        <td className="py-2.5 pr-4 font-mono text-[var(--color-text-tertiary)] text-[12px]">
-                          {typeof alert.id === 'string' ? alert.id.slice(0, 12) : `#${alert.id}`}
-                        </td>
-                        <td className="py-2.5 pr-4">
-                          <div className="font-mono text-[var(--color-text-secondary)] text-[12px]">{formatTime(alert.timestamp)}</div>
-                          <div className="font-mono text-[var(--color-text-tertiary)] text-[11px]">{timeAgo(alert.timestamp)}</div>
-                        </td>
-                        <td className="py-2.5 pr-4 font-medium text-[var(--color-text-primary)]">{alert.symbol}</td>
-                        <td className="py-2.5 pr-4">
-                          <span className="font-mono font-medium" style={{ color: sev.color }}>
-                            -{ddPct.toFixed(2)}%
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-4"><StatusBadge status={alert.status} /></td>
-                        <td className="py-2.5">
-                          <button onClick={() => openDetail(alert)} className="text-[var(--color-text-secondary)] text-[12px] font-medium hover:text-[var(--color-text-primary)] transition-colors">
-                            View Details
-                          </button>
-                        </td>
-                      </motion.tr>
-                    )
-                  })}
-                </AnimatePresence>
+              <tbody style={{ borderColor: 'var(--border-faint)' }} className="divide-y divide-[var(--border-faint)]">
+                {filteredAlerts.map(alert => {
+                  const dd = alert.drawdown * 100
+                  const sev = drawdownSeverity(dd)
+                  return (
+                    <tr
+                      key={alert.id}
+                      onClick={() => openDetail(alert)}
+                      className="hover:bg-[var(--surface-raised)] transition-colors duration-100 cursor-pointer"
+                    >
+                      <td className="py-2.5 pr-4">
+                        <div className="font-mono text-[12px] text-[var(--text)] tabular-nums">{formatTime(alert.timestamp)}</div>
+                        <div className="font-mono text-[10px] text-[var(--text-faint)] tabular-nums">{timeAgo(alert.timestamp)}</div>
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <span className="font-medium text-[13px] text-[var(--text)]">{alert.symbol}</span>
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <div className="font-mono text-[12px] font-medium tabular-nums" style={{ color: sev.color }}>
+                          {dd.toFixed(2)}%
+                        </div>
+                        <div className="text-[10px] font-mono text-[var(--text-faint)] lowercase">{sev.label}</div>
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <StatusBadge status={alert.status} />
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <span className="text-[11px] text-[var(--text-dim)] truncate max-w-[280px] block">
+                          {(alert as any).reason || (alert.status === 'processed' ? 'Protective put ordered' : 'Drawdown monitored')}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openDetail(alert) }}
+                          className="font-mono text-[11px] text-[var(--brand)] hover:underline"
+                        >
+                          inspect
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
+      {/* Alert Detail Modal */}
       <AnimatePresence>
         {modalOpen && selectedAlert && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="fixed inset-0 bg-black/20 z-50" onClick={closeModal} />
-            <motion.div initial={{ opacity: 0, scale: 0.97, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 12 }} transition={{ duration: 0.2 }} className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg z-50 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg overflow-y-auto max-h-[90vh]">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+              style={{ backgroundColor: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+              className="w-full max-w-lg border rounded-[2px] p-5 space-y-4 shadow-none"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--border-faint)] pb-3">
                 <div>
-                  <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">Alert Details</div>
-                  <div className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{selectedAlert.symbol} — {formatDate(selectedAlert.timestamp)}</div>
+                  <span className="label">Alert inspector</span>
+                  <div className="text-[14px] font-mono font-medium text-[var(--text)] mt-0.5">
+                    {selectedAlert.symbol} — {selectedAlert.status}
+                  </div>
                 </div>
-                <button onClick={closeModal} className="w-7 h-7 rounded-md bg-[var(--color-bg-hover)] hover:bg-[var(--color-border)] flex items-center justify-center text-[var(--color-text-secondary)] transition-colors text-[13px]">
+                <button
+                  onClick={closeModal}
+                  className="text-[var(--text-faint)] hover:text-[var(--text)] font-mono text-sm px-1.5 py-0.5"
+                >
                   ✕
                 </button>
               </div>
-              <div className="px-5 py-4 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
-                    <div className="label mb-1">Alert ID</div>
-                    <div className="text-[12px] font-mono text-[var(--color-text-primary)] break-all">
-                      {typeof selectedAlert.id === 'string' ? selectedAlert.id : `#${selectedAlert.id}`}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
-                    <div className="label mb-1">Triggered At</div>
-                    <div className="text-[12px] font-mono text-[var(--color-text-primary)]">{formatTime(selectedAlert.timestamp)}</div>
-                    <div className="text-[11px] text-[var(--color-text-tertiary)]">{timeAgo(selectedAlert.timestamp)}</div>
-                  </div>
-                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
-                    <div className="label mb-1">Portfolio Value</div>
-                    <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                      ${(portfolio?.portfolio_value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
-                    <div className="label mb-1">Peak Value</div>
-                    <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                      ${(portfolio?.peak_value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
+
+              <div className="grid grid-cols-2 gap-3 text-[11px] font-mono">
+                <div className="p-3 bg-[var(--surface)] border border-[var(--border-faint)] rounded-[2px]">
+                  <span className="label block mb-1">Drawdown breached</span>
+                  <span className="text-[14px] font-medium text-[var(--negative)] tabular-nums">
+                    {(selectedAlert.drawdown * 100).toFixed(2)}%
+                  </span>
                 </div>
-
-                {(() => {
-                  const ddPct = (selectedAlert.drawdown ?? 0) * 100
-                  const sev = drawdownSeverity(ddPct)
-                  return (
-                    <div className="rounded-lg border p-4" style={{ borderColor: `${sev.color}33`, backgroundColor: `${sev.color}08` }}>
-                      <div className="label mb-1" style={{ color: sev.color }}>Drawdown at Trigger</div>
-                      <div className="text-[22px] font-semibold font-mono tabular-nums" style={{ color: sev.color }}>
-                        -{ddPct.toFixed(2)}%
-                      </div>
-                      <div className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{sev.label} severity — threshold breached</div>
-                    </div>
-                  )
-                })()}
-
-                <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
-                  <div>
-                    <div className="label mb-1">Status</div>
-                    <StatusBadge status={selectedAlert.status} />
-                  </div>
-                  <div className="text-right">
-                    <div className="label mb-1">Symbol</div>
-                    <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">{selectedAlert.symbol}</div>
-                  </div>
+                <div className="p-3 bg-[var(--surface)] border border-[var(--border-faint)] rounded-[2px]">
+                  <span className="label block mb-1">Status</span>
+                  <StatusBadge status={selectedAlert.status} />
                 </div>
-
-                <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)] p-3">
-                  <div className="label mb-2">Hedge Result</div>
-                  {selectedAlert.status === 'processed' ? (
-                    <div className="flex items-center gap-2 text-[var(--color-positive)] text-[12px] font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-positive)]" />
-                      Protective put placed — 5% OTM, 14-day expiry
-                    </div>
-                  ) : selectedAlert.status === 'skipped' ? (
-                    <div className="flex items-center gap-2 text-[var(--color-warning)] text-[12px] font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)]" />
-                      Idempotency guard — duplicate alert skipped
-                    </div>
-                  ) : selectedAlert.status === 'failed' ? (
-                    <div className="flex items-center gap-2 text-[var(--color-danger)] text-[12px] font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-danger)]" />
-                      Order failed — broker rejected or insufficient funds
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] text-[12px]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-tertiary)]" />
-                      Pending processing...
-                    </div>
-                  )}
+                <div className="p-3 bg-[var(--surface)] border border-[var(--border-faint)] rounded-[2px]">
+                  <span className="label block mb-1">Timestamp</span>
+                  <span className="text-[var(--text)] tabular-nums">{formatDate(selectedAlert.timestamp)} {formatTime(selectedAlert.timestamp)}</span>
                 </div>
-
-                <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-page)]">
-                  <button onClick={() => setRawJsonOpen(prev => !prev)} className="w-full flex items-center justify-between px-3 py-2.5 label hover:text-[var(--color-text-primary)] transition-colors">
-                    <span>Raw JSON</span>
-                    <span className="text-[var(--color-text-tertiary)]">{rawJsonOpen ? '▾' : '▸'}</span>
-                  </button>
-                  <AnimatePresence>
-                    {rawJsonOpen && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
-                        <pre className="px-3 pb-3 font-mono text-[11px] text-[var(--color-text-secondary)] leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
-                          {JSON.stringify(selectedAlert, null, 2)}
-                        </pre>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                <div className="p-3 bg-[var(--surface)] border border-[var(--border-faint)] rounded-[2px]">
+                  <span className="label block mb-1">Relative time</span>
+                  <span className="text-[var(--text-dim)] tabular-nums">{timeAgo(selectedAlert.timestamp)}</span>
                 </div>
               </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => setRawJsonOpen(p => !p)}
+                  className="text-[11px] font-mono text-[var(--brand)] hover:underline flex items-center gap-1"
+                >
+                  <span>{rawJsonOpen ? '▼ Hide raw payload' : '▶ View raw payload'}</span>
+                </button>
+                {rawJsonOpen && (
+                  <pre
+                    style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border-faint)' }}
+                    className="mt-2 p-3 border rounded-[2px] text-[10px] font-mono text-[var(--text-dim)] overflow-x-auto"
+                  >
+                    {JSON.stringify(selectedAlert, null, 2)}
+                  </pre>
+                )}
+              </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
     </div>
