@@ -7,19 +7,21 @@ interface ThemeContextValue {
   toggle: () => void
 }
 
-const ThemeContext = createContext<ThemeContextValue>({ theme: 'light', toggle: () => {} })
+const ThemeContext = createContext<ThemeContextValue>({ theme: 'dark', toggle: () => {} })
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem('hedgify-theme')
-    return (stored === 'dark' || stored === 'light') ? stored : 'light'
+    return (stored === 'dark' || stored === 'light') ? stored : 'dark'
   })
 
   useEffect(() => {
     const root = document.documentElement
     if (theme === 'dark') {
       root.classList.add('dark')
+      root.classList.remove('light')
     } else {
+      root.classList.add('light')
       root.classList.remove('dark')
     }
     localStorage.setItem('hedgify-theme', theme)
