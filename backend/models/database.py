@@ -48,13 +48,6 @@ class Hedge(Base):
     status = Column(String, default="active")  # active, expired, closed
 
 
-class EventLog(Base):
-    __tablename__ = "events"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    event_type = Column(String, nullable=False)
-    payload = Column(String, nullable=False)
 
 
 class EventLog(Base):
@@ -66,6 +59,13 @@ class EventLog(Base):
     event_type = Column(String, index=True)     # "PORTFOLIO_CHECK", "HEDGE_PLACED", ...
     message = Column(Text)
     severity = Column(String, default="info")   # "info" | "warning" | "error"
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String)
+    updated_at = Column(DateTime, default=datetime.utcnow)
 
 
 def init_db():

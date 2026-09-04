@@ -177,3 +177,24 @@ async def get_logs(limit: int = 50, agent: str = None, severity: str = None, db:
         }
         for e in events
     ]
+
+from services.app_settings import get_all_settings, set_settings
+
+
+class ConfigUpdate(BaseModel):
+    updates: dict
+
+
+@router.get("/config")
+async def get_config():
+    """Live runtime configuration — powers the Settings page."""
+    return get_all_settings()
+
+
+@router.put("/config")
+async def update_config(payload: ConfigUpdate):
+    """Update runtime settings — agents pick up changes on their next loop."""
+    try:
+        return {"ok": True, "settings": set_settings(payload.updates)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -18,7 +18,7 @@ ALPACA_DATA_URL = "https://data.alpaca.markets" # it's the address where the cod
 DRAWDOWN_THRESHOLD = 0.02          # 2% trigger
 OTM_BUFFER = 0.05                  # 5% OTM
 DAYS_TO_EXPIRY = 14                # Put option expiry
-POLL_INTERVAL_SECONDS = 10        # 15 minutes
+POLL_INTERVAL_SECONDS = 10   # DEMO interval; production default is 900 (15 min)
 MAX_RETRIES = 3                    # API retry count
 RETRY_DELAY_SECONDS = 30           # Retry backoff
 
