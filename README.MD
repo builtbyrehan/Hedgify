@@ -401,19 +401,3 @@ Hedgify/
 <img src="https://komarev.com/ghpvc/?username=builtbyrehan&style=flat-square&color=10B981" alt="Views" />
 
 </div>
-````
-
----
-
-## ▶️ Apply it
-
-```powershell
-# Paste the content above into README.md (everything between the outer fences), then:
-git add README.md backend/.env.example
-git commit -m "docs: maximum-impact README — real terminal demo, stats, integration diary"
-git push origin main
-```
-
-**Then run the snake workflow once** (Actions tab → *generate snake* → Run) so the SVG populates for later.
-
-**Next step after this:** back to **deployment** (Step 1 of the Render+Netlify plan — the two `api.ts` edits). Say "go" when ready. 🚀
