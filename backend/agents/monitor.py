@@ -1,7 +1,7 @@
 """
 Monitor Agent (Supervisor) — polls portfolio every 15 min, detects drawdowns, fires alerts.
 """
-
+from services.event_logger import log_event
 import asyncio
 from datetime import datetime
 from loguru import logger
@@ -19,6 +19,7 @@ class MonitorAgent:
     async def run_loop(self):
         """Infinite loop: check portfolio, sleep 15 min, repeat."""
         logger.info("🟢 Monitor Agent started — watching your portfolio")
+        log_event("Monitor", "AGENT_START", "Monitor agent started — watching your portfolio")
         while self.running:
             try:
                 await self.check_portfolio()
@@ -50,9 +51,11 @@ class MonitorAgent:
 
             if drawdown >= DRAWDOWN_THRESHOLD:
                 logger.warning(f"🚨 DRAWDOWN ALERT: {drawdown:.2%} — firing hedge event!")
+                log_event("Monitor", "DRAWDOWN_ALERT", f"Drawdown breached {DRAWDOWN_THRESHOLD:.2%} threshold ({drawdown:.2%}). Alert fired.", severity="warning")
                 await self._fire_alert(db, positions, portfolio_value, peak_value, drawdown)
             else:
                 logger.info("✅ All clear — portfolio healthy")
+                log_event("Monitor", "PORTFOLIO_CHECK", f"Portfolio drawdown at {drawdown:.2%}, below {DRAWDOWN_THRESHOLD:.2%} threshold. No action required.")
 
         finally:
             db.close()

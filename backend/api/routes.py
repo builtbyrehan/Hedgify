@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from services.stress_test import run_stress_test
 
 
-from models.database import get_db, PortfolioSnapshot, Alert, Hedge, SessionLocal
+from models.database import get_db, PortfolioSnapshot, Alert, Hedge, SessionLocal, EventLog
 from api.websocket import websocket_manager
 from services.alpaca_client import alpaca
 
@@ -154,3 +154,26 @@ async def stress_test(req: StressTestRequest):
     if not (0 < drop <= 0.9):
         raise HTTPException(status_code=400, detail="drawdown_pct must be between 0 and 0.9")
     return run_stress_test(req.symbol.upper(), drop)
+
+
+
+@router.get("/logs")
+async def get_logs(limit: int = 50, agent: str = None, severity: str = None, db: Session = Depends(get_db)):
+    """System event telemetry — powers the Logs page."""
+    query = db.query(EventLog)
+    if agent:
+        query = query.filter(EventLog.agent == agent)
+    if severity:
+        query = query.filter(EventLog.severity == severity)
+    events = query.order_by(EventLog.timestamp.desc()).limit(limit).all()
+    return [
+        {
+            "id": e.id,
+            "timestamp": e.timestamp.isoformat(),
+            "agent": e.agent,
+            "event_type": e.event_type,
+            "message": e.message,
+            "severity": e.severity,
+        }
+        for e in events
+    ]

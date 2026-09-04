@@ -5,7 +5,7 @@ Hedge Executor (Worker) — receives drawdown alerts, calculates put options, pl
 import uuid
 from datetime import datetime, timedelta
 from loguru import logger
-
+from services.event_logger import log_event
 from models.database import SessionLocal, Alert, Hedge
 from api.websocket import websocket_manager
 from config import OTM_BUFFER, DAYS_TO_EXPIRY
@@ -15,6 +15,7 @@ class HedgeExecutor:
     async def process_alert(self, alert_id: int, symbol: str, current_price: float, drawdown: float):
         """Main entry: called when Monitor fires an alert."""
         logger.info(f"🔧 Executor processing alert #{alert_id} for {symbol}")
+        log_event("Executor", "ALERT_RECEIVED", f"Executor processing alert #{alert_id} for {symbol}")
 
         db = SessionLocal()
         try:
@@ -25,6 +26,7 @@ class HedgeExecutor:
 
             if existing:
                 logger.warning(f"⚠️  Already hedged on {symbol} — skipping duplicate")
+                log_event("Executor", "IDEMPOTENCY_GUARD", f"Duplicate alert for {symbol} skipped — active hedge exists. Guard active.", severity="warning")
                 self._update_alert_status(db, alert_id, "skipped")
                 return
 
@@ -61,9 +63,11 @@ class HedgeExecutor:
                 })
 
                 logger.info(f"✅ Hedge active: {symbol} Put @ ${strike_price}, expires {expiry_date}")
+                log_event("Executor", "HEDGE_PLACED", f"Protective put order filled: {symbol} 5% OTM, {DAYS_TO_EXPIRY}-day expiry, ${order_result.get('premium', 50.0):.2f} premium.")
             else:
                 self._update_alert_status(db, alert_id, "failed")
                 logger.error(f"❌ Order failed: {order_result.get('error')}")
+                log_event("Executor", "ORDER_FAILED", f"Order failed: {order_result.get('error')}", severity="error")
 
         finally:
             db.close()

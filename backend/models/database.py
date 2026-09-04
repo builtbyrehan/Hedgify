@@ -2,7 +2,8 @@
 SQLite Database Schema — Shared by FastAPI and Agents.
 """
 
-from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean
+
+from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -54,6 +55,17 @@ class EventLog(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     event_type = Column(String, nullable=False)
     payload = Column(String, nullable=False)
+
+
+class EventLog(Base):
+    __tablename__ = "event_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    agent = Column(String, index=True)          # "Monitor" | "Executor"
+    event_type = Column(String, index=True)     # "PORTFOLIO_CHECK", "HEDGE_PLACED", ...
+    message = Column(Text)
+    severity = Column(String, default="info")   # "info" | "warning" | "error"
 
 
 def init_db():
