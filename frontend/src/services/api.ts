@@ -1,6 +1,10 @@
 import type { Portfolio, Alert, Hedge, LogEntry, StressTestResult } from '../types'
 
-const API_CANDIDATES = ['http://localhost:8000', 'http://localhost:5000']
+const API_CANDIDATES = [
+  import.meta.env.VITE_API_URL as string,
+  'http://localhost:8000',
+  'http://localhost:5000',
+].filter(Boolean) as string[]
 const WS_CANDIDATES = ['ws://localhost:8000/ws', 'ws://localhost:5000/ws']
 
 let _apiBase: string | null = null
@@ -22,9 +26,11 @@ export async function probeApi(): Promise<string | null> {
 export function getApiBase(): string | null { return _apiBase }
 
 export function getWsUrl(): string {
-  return _apiBase
-    ? `ws://${new URL(_apiBase).host}/ws`
-    : WS_CANDIDATES[0]
+  if (_apiBase) {
+    const proto = new URL(_apiBase).protocol === 'https:' ? 'wss' : 'ws'
+    return `${proto}://${new URL(_apiBase).host}/ws`
+  }
+  return WS_CANDIDATES[0]
 }
 
 export async function fetchPortfolio(): Promise<Portfolio | null> {
