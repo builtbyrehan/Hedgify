@@ -27,3 +27,4 @@ DATABASE_URL = "sqlite:///./portfolio_state.db"
 
 # Logging
 LOG_LEVEL = "INFO"
+PUT_PREMIUM = 50.0

@@ -71,9 +71,9 @@ export default function StressTestPage() {
         const price = currentPrice
         const newPrice = price * (1 + dropPct / 100)
         const unhedgedLoss = (price - newPrice) * sharesHeld
-        const putStrike = Math.round(price * 0.95)
+        const putStrike = Math.round(price * 0.95 * 100) / 100
         const putPayout = Math.max(0, (putStrike - newPrice) * sharesHeld)
-        const premiumCost = Math.round(unhedgedLoss * 0.08) || 50
+        const premiumCost = 50
         const hedgedLoss = unhedgedLoss + premiumCost - putPayout
         const moneySaved = Math.max(0, unhedgedLoss - hedgedLoss)
         const cpr = unhedgedLoss > 0 ? moneySaved / Math.abs(unhedgedLoss) : 0
@@ -95,7 +95,7 @@ export default function StressTestPage() {
       const price = currentPrice
       const newPrice = price * (1 + dropPct / 100)
       const unhedgedLoss = (price - newPrice) * sharesHeld
-      const putStrike = Math.round(price * 0.95)
+      const putStrike = Math.round(price * 0.95 * 100) / 100
       const putPayout = Math.max(0, (putStrike - newPrice) * sharesHeld)
       const premiumCost = 50
       const hedgedLoss = unhedgedLoss + premiumCost - putPayout

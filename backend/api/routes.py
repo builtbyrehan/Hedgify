@@ -2,13 +2,17 @@
 FastAPI REST routes — portfolio data, alerts, stress test endpoints.
 """
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timedelta
+from pydantic import BaseModel
+from services.stress_test import run_stress_test
+
 
 from models.database import get_db, PortfolioSnapshot, Alert, Hedge, SessionLocal
 from api.websocket import websocket_manager
+from services.alpaca_client import alpaca
 
 router = APIRouter()
 
@@ -50,9 +54,10 @@ async def get_portfolio_history(limit: int = 30, db: Session = Depends(get_db)):
 
 @router.post("/simulate-drawdown")
 async def simulate_drawdown(payload: dict = Body(default={}), db: Session = Depends(get_db)):
-    """Stress test: force a drawdown, fire ALERT + HEDGE live. Demo 'watch this' button."""
+    """Live demo: force a drawdown, fire ALERT + HEDGE through the real pipeline."""
     drawdown_pct = float(payload.get("drawdown_pct", 0.028))
     symbol = payload.get("symbol", "AAPL")
+
     # get peak
     latest = db.query(PortfolioSnapshot).order_by(PortfolioSnapshot.timestamp.desc()).first()
     peak = latest.peak_value if latest else 127104
@@ -63,8 +68,18 @@ async def simulate_drawdown(payload: dict = Body(default={}), db: Session = Depe
     db.add(snap)
     db.commit()
 
-    # create alert
+    # CHANGED: real price lookup (fixes wrong strike on non-AAPL symbols), fallback 230
     price = 230.0
+    try:
+        positions = alpaca.get_positions()
+        for pos in positions:
+            if pos.get("symbol") == symbol:
+                price = float(pos.get("current_price", 0) or 0) or 230.0
+                break
+    except Exception:
+        pass
+
+    # create alert
     alert = Alert(stock_symbol=symbol, current_price=price, drawdown_pct=drawdown_pct, status="fired")
     db.add(alert)
     db.commit()
@@ -87,8 +102,9 @@ async def simulate_drawdown(payload: dict = Body(default={}), db: Session = Depe
 async def simulate_alias(payload: dict = Body(default={}), db: Session = Depends(get_db)):
     return await simulate_drawdown(payload, db)
 
-@router.post("/stress-test")
-async def stress_test_alias(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+# CHANGED: renamed from "/stress-test" to "/simulate-live" — no longer shadows the math endpoint
+@router.post("/simulate-live")
+async def simulate_live_alias(payload: dict = Body(default={}), db: Session = Depends(get_db)):
     return await simulate_drawdown(payload, db)
 
 
@@ -124,3 +140,17 @@ async def get_hedges(db: Session = Depends(get_db)):
         }
         for h in hedges
     ]
+
+
+class StressTestRequest(BaseModel):
+    symbol: str
+    drawdown_pct: float  # fraction: 0.15 = 15% drop
+
+
+@router.post("/stress-test")
+async def stress_test(req: StressTestRequest):
+    """Simulate a market crash — hedged vs unhedged comparison."""
+    drop = abs(req.drawdown_pct)
+    if not (0 < drop <= 0.9):
+        raise HTTPException(status_code=400, detail="drawdown_pct must be between 0 and 0.9")
+    return run_stress_test(req.symbol.upper(), drop)
