@@ -8,7 +8,11 @@ import type { Alert } from '../types'
 
 function formatTime(iso: string) {
   try {
-    return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+    const d = new Date(iso)
+    if (Date.now() - d.getTime() < 24 * 3600 * 1000) {
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
   } catch { return '--:--:--' }
 }
 
