@@ -118,7 +118,9 @@ async def get_hedges(db: Session = Depends(get_db)):
             "symbol": h.stock_symbol,
             "strike": h.strike_price,
             "expiry": h.expiry_date,
-            "status": h.status
+            "premium_paid": h.premium_paid,
+            "status": h.status,
+            "timestamp": h.timestamp.isoformat(),
         }
         for h in hedges
     ]

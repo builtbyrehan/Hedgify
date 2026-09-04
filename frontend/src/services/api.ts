@@ -111,7 +111,7 @@ export async function runStressTest(symbol: string, dropPct: number): Promise<St
         const unhedgedLoss = data.unhedged_loss ?? (currentPrice - newPrice) * 100
         const putPayout = data.put_payout ?? Math.max(0, (data.strike ?? currentPrice * 0.95) - newPrice) * 100
         const premiumCost = data.premium_cost ?? data.premium ?? 50
-        const moneySaved = data.money_saved ?? Math.max(0, unhedgedLoss - (unhedgedLoss + putPayout - premiumCost))
+        const moneySaved = data.money_saved ?? Math.max(0, putPayout - premiumCost)
         const cpr = unhedgedLoss > 0 ? Math.min(1, moneySaved / Math.abs(unhedgedLoss)) : 0
         return {
           symbol,
