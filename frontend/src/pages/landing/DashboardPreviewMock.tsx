@@ -83,7 +83,7 @@ export default function DashboardPreviewMock() {
           <div className="text-[10px] font-mono mb-1" style={{ color: '#54565C' }}>portfolio value</div>
           <AnimatedValue base={124382} />
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[11px] font-mono" style={{ color: '#54565C' }}>peak $127,104</span>
+            <span className="text-[11px] font-mono" style={{ color: '#54565C' }}>peak $128,104</span>
             <span className="text-[11px] font-mono" style={{ color: '#eab308' }}>-2.14%</span>
           </div>
         </div>
