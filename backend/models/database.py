@@ -1,16 +1,33 @@
 """
-SQLite Database Schema — Shared by FastAPI and Agents.
+SQLite/Cloud Database Schema — Shared by FastAPI and Agents.
+Supports local SQLite AND Turso (libSQL cloud) via DATABASE_URL env var.
 """
 
+import os
 
 from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from config import DATABASE_URL
+from config import DATABASE_URL as _CONFIG_DB_URL
+
+# Env var wins (Vercel/Turso), falls back to config.py default (local SQLite)
+DATABASE_URL = os.getenv("DATABASE_URL", _CONFIG_DB_URL)
 
 Base = declarative_base()
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+if DATABASE_URL.startswith("sqlite+libsql") or DATABASE_URL.startswith("libsql://"):
+    # ── Turso (libSQL cloud) ──────────────────────────────────────
+    if DATABASE_URL.startswith("libsql://"):
+        DATABASE_URL = DATABASE_URL.replace("libsql://", "sqlite+libsql://", 1)
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"auth_token": os.getenv("DATABASE_AUTH_TOKEN", "")},
+    )
+else:
+    # ── Local SQLite ─────────────────────────────────────────────
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -46,8 +63,6 @@ class Hedge(Base):
     quantity = Column(Integer, nullable=False)
     premium_paid = Column(Float, nullable=False)
     status = Column(String, default="active")  # active, expired, closed
-
-
 
 
 class EventLog(Base):
