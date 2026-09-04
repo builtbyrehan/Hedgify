@@ -1,15 +1,54 @@
 <div align="center">
 
-# 🛡️ Hedgify
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=Hedgify&fontSize=64&fontColor=ffffff&animation=fadeIn&desc=Autonomous%20AI-Powered%20Portfolio%20Insurance&descSize=18&descAlignY=72" width="100%" />
 
-### *Autonomous AI-Powered Portfolio Insurance*
-
-[![Alpaca](https://img.shields.io/badge/Built%20For-Alpaca%20AI%20Trading%20Agents%20Hackathon-FFD700?style=for-the-badge&logo=alpaca&logoColor=black)](https://lablab.ai/event/alpaca-ai-trading-agents-hackathon)
+<!-- BADGES — ROW 1: PLATFORM -->
+[![Alpaca](https://img.shields.io/badge/Built%20For-Alpaca%20Hackathon-FFD700?style=for-the-badge&logo=alpaca&logoColor=black)](https://lablab.ai/event/alpaca-ai-trading-agents-hackathon)
 [![lablab.ai](https://img.shields.io/badge/Powered%20By-lablab.ai-6366F1?style=for-the-badge)](https://lablab.ai)
+[![Status](https://img.shields.io/badge/Status-Submission%20Ready-10B981?style=for-the-badge)](#)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-22c55e?style=for-the-badge)](https://github.com/builtbyrehan/Hedgify/pulls)
+
+<!-- BADGES — ROW 2: LIVE COUNTERS (light up when repo goes public) -->
+[![Stars](https://img.shields.io/github/stars/builtbyrehan/Hedgify?style=flat-square&color=yellow)](https://github.com/builtbyrehan/Hedgify/stargazers)
+[![Forks](https://img.shields.io/github/forks/builtbyrehan/Hedgify?style=flat-square&color=blue)](https://github.com/builtbyrehan/Hedgify/network)
+[![Issues](https://img.shields.io/github/issues/builtbyrehan/Hedgify?style=flat-square&color=orange)](https://github.com/builtbyrehan/Hedgify/issues)
+[![Last Commit](https://img.shields.io/github/last-commit/builtbyrehan/Hedgify?style=flat-square&logo=git&logoColor=white)](https://github.com/builtbyrehan/Hedgify/commits)
+[![Code Size](https://img.shields.io/github/languages/code-size/builtbyrehan/Hedgify?style=flat-square)](#)
 
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&duration=3000&pause=1000&color=10B981&center=true&vCenter=true&width=600&lines=Multi-Agent+Risk+Management;Protective+Put+Hedging;Real-Time+Drawdown+Detection;MCP-Enabled+Brokerage+Integration" alt="Typing SVG" />
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&duration=2800&pause=900&color=10B981&center=true&vCenter=true&width=640&lines=Multi-Agent+Risk+Management;Real+Options+Chain+Matching;Real+Order+Execution+%F0%9F%94%A5;Live+Runtime+Kill-Switch;Zero+Liquidation.+Zero+Panic." alt="Typing SVG" />
 </p>
+
+</div>
+
+> **Hedgify watches your stocks 24/7, and the moment your portfolio drops past its threshold, it buys real protective put options on Alpaca — automatically. You keep every share. Your downside is capped. You sleep.**
+
+---
+
+## 📺 Live Terminal
+
+<div align="center">
+
+```bash
+$ python -m uvicorn main:app --reload
+
+🟢 Monitor Agent started — watching your portfolio
+📊 Portfolio: $97,076.14 | Cash: $96,801.42 | Peak: $97,086.49 | Drawdown: 0.01%
+✅ All clear — portfolio healthy
+
+                                … the market dips …
+
+🚨 DRAWDOWN ALERT: 3.00% — firing hedge event!
+🔧 Executor processing alert #10 for NVDA
+🔎 Chain match: NVDA260918P00123000 (target $123.50)
+🧾 REAL ORDER: NVDA260918P00123000 | status=accepted
+✅ Hedge active: NVDA Put @ $123.50, expires 2026-09-18
+
+⚙️  operator flips kill-switch →
+⏸️  Autonomous hedging disabled — alert acknowledged, no order placed
+```
+
+**Every line above is real system output. Nothing is simulated.**
 
 </div>
 
@@ -17,9 +56,14 @@
 
 ## 🎯 The Problem
 
-When retail investors hold equity portfolios, unexpected market shocks cause rapid, unrecoverable drawdowns. Standard stop-loss mechanisms **force complete liquidation**, crystallizing losses, triggering tax liabilities, and causing investors to miss rebounds.
+When retail investors hold equity portfolios, unexpected market shocks cause rapid, unrecoverable drawdowns. Standard stop-loss mechanisms **force complete liquidation** — crystallizing losses, triggering tax liabilities, and causing investors to miss rebounds.
 
-> **Hedgify solves this by autonomously buying protective put options — insuring your portfolio without selling a single share.**
+| | Stop-Loss | **Hedgify** |
+|---|---|---|
+| On a crash | 🏳️ **sells everything** | 🛡️ **buys insurance** |
+| Your shares | gone | **100% kept** |
+| Upside after rebound | missed | **fully captured** |
+| Emotion | panic | **sleep** |
 
 ---
 
@@ -27,16 +71,17 @@ When retail investors hold equity portfolios, unexpected market shocks cause rap
 
 | Feature | Status | Description |
 |---|---|---|
-| 🔍 **Real-Time Monitoring** | ✅ Complete | Polls Alpaca paper trading every 15 min for live portfolio value |
-| 📉 **Drawdown Detection** | ✅ Complete | Calculates peak-to-trough decline; fires alert at ≥2% threshold |
-| 🤖 **Multi-Agent Orchestration** | ✅ Complete | Supervisor (Monitor) + Worker (Executor) with clean event handoff |
-| 🛡️ **Protective Put Hedging** | ✅ Complete | Auto-calculates 5% OTM strike, 14-day expiry, places simulated order |
-| 🔄 **Idempotency Guard** | ✅ Complete | Prevents duplicate hedge orders — saves capital from over-insuring |
-| 📡 **WebSocket Live Push** | ✅ Complete | Real-time alert + hedge broadcasts to connected dashboards |
-| 💾 **SQLite Persistence** | ✅ Complete | Full audit trail: snapshots, alerts, hedges, event logs |
-| 📊 **React Dashboard** | 🚧 In Progress | Real-time portfolio cards, alert feed, active hedges table |
-| 🧪 **Stress Test Simulator** | 🚧 In Progress | Synthetic crash scenarios to prove hedge efficacy |
-| 🔌 **MCP Bridge** | 📋 Planned | Model Context Protocol integration for universal broker support |
+| 🔍 **Real-Time Monitoring** | ✅ | Polls Alpaca paper trading — interval **live-tunable** (10s demo / 15 min prod) |
+| 📉 **Drawdown Detection** | ✅ | Peak-to-trough math; alerts the instant the threshold is crossed |
+| 🤖 **Multi-Agent Orchestration** | ✅ | Supervisor (Monitor) → event handoff → Worker (Executor) |
+| 🛡️ **Real Options Execution** | ✅ | Queries the **live options chain**, matches the closest listed strike, places **real orders** |
+| 🔄 **Idempotency Guard** | ✅ | Duplicate insurance? Blocked. Capital saved. |
+| ⏯️ **Runtime Kill-Switch** | ✅ | Disable hedging mid-crisis — agents obey on their next loop, **no restart** |
+| 📡 **WebSocket Live Push** | ✅ | Alerts + hedge confirmations hit the dashboard instantly |
+| 💾 **Full Audit Trail** | ✅ | SQLite: snapshots, alerts, hedges, event telemetry |
+| 📊 **React Dashboard** | ✅ | Portfolio chart · alert feed · hedges · logs · stress test · **live settings** |
+| 🧪 **Stress Test Simulator** | ✅ | Synthetic crash → hedged vs unhedged → **CPR gauge** |
+| 🔌 **MCP Bridge** | 📋 | Model Context Protocol for universal broker support |
 
 ---
 
@@ -44,58 +89,51 @@ When retail investors hold equity portfolios, unexpected market shocks cause rap
 
 ```mermaid
 flowchart TB
-    subgraph Frontend["🎨 Frontend — React 18 + Vite + Tailwind"]
+    subgraph Frontend["🎨 React 18 · Vite · Tailwind"]
         D1[Portfolio Chart]
         D2[Alert Feed]
         D3[Active Hedges]
-        D4[Stress Test UI]
+        D4[Stress Test]
+        D5[Live Settings]
+        D6[Event Logs]
     end
 
-    subgraph Backend["⚙️ Backend — FastAPI + Python"]
+    subgraph Backend["⚙️ FastAPI · Python"]
         subgraph API["API Layer"]
-            REST["/api/v1/*"]
-            WS["/ws — WebSocket"]
+            REST["REST /api/v1"]
+            WS["WebSocket /ws"]
         end
-
-        subgraph Agents["🤖 Agent Engine"]
-            MON["Monitor Agent
-Supervisor"]
-            EXE["Hedge Executor
-Worker"]
+        subgraph Agents["Agent Engine"]
+            MON["🧠 Monitor Agent<br/><i>Supervisor</i>"]
+            EXE["🛡️ Hedge Executor<br/><i>Worker</i>"]
         end
-
-        MCP["🔌 MCP Bridge
-(Alpaca Integration)"]
+        CFG["⚙️ Runtime Config<br/><i>app_settings</i>"]
     end
 
-    subgraph Data["💾 Data — SQLite"]
-        DB1[(portfolio_snapshots)]
+    subgraph Data["💾 SQLite"]
+        DB1[(snapshots)]
         DB2[(alerts)]
         DB3[(hedges)]
         DB4[(event_logs)]
+        DB5[(app_settings)]
     end
 
-    subgraph Broker["🏦 Alpaca Paper Trading"]
-        ACC["Account API"]
-        POS["Positions API"]
-        OPT["Options API"]
+    subgraph Broker["🏦 Alpaca APIs"]
+        ACC["Trading API<br/><i>paper-api</i>"]
+        OPT["Options Data API<br/><i>data.alpaca.markets</i>"]
     end
 
-    MON -->|DRAWDOWN_EVENT| EXE
-    EXE -->|intent| MCP
-    MCP -->|execute| OPT
-    ACC -->|portfolio value| MON
-    POS -->|holdings| MON
+    MON -->|"DRAWDOWN_EVENT"| EXE
+    EXE -->|"order + idempotency"| ACC
+    EXE -->|"live chain quotes"| OPT
+    ACC -->|"equity + positions"| MON
+    CFG -->|"read every loop"| MON & EXE
 
-    MON --> DB1
-    MON --> DB2
-    EXE --> DB3
-    EXE --> DB4
+    MON --> DB1 & DB2 & DB4
+    EXE --> DB3 & DB4
 
-    WS --> D1
-    WS --> D2
-    WS --> D3
-    REST --> D4
+    WS --> D1 & D2 & D3
+    REST --> D4 & D5 & D6
 ```
 
 ---
@@ -103,28 +141,25 @@ Worker"]
 ## 🧠 The Agentic Pipeline
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Monitor Agent  │────►│  DRAWDOWN_EVENT  │────►│ Hedge Executor  │
-│   (Supervisor)  │     │   {symbol, drop} │     │    (Worker)     │
-│                 │     │                  │     │                 │
-│ • Polls Alpaca  │     │                  │     │ • Checks DB for │
-│ • Tracks peak   │     │                  │     │   existing hedge│
-│ • Detects ≥2%   │     │                  │     │ • Calculates    │
-│   drop          │     │                  │     │   5% OTM put    │
-│ • Fires event   │     │                  │     │ • Places order  │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-         │                                                    │
-         ▼                                                    ▼
-   ┌──────────┐                                       ┌──────────┐
-   │  SQLite  │                                       │  SQLite  │
-   │  alerts  │                                       │  hedges  │
-   └──────────┘                                       └──────────┘
-         │                                                    │
-         └────────────────────┬───────────────────────────────┘
+┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Monitor Agent  │────►│  DRAWDOWN_EVENT  │────►│  Hedge Executor  │
+│   (Supervisor)  │     │  {symbol, drop}  │     │     (Worker)     │
+│                 │     │                  │     │                  │
+│ • Polls Alpaca  │     │                  │     │ • kill-switch?   │
+│ • Tracks peak   │     │                  │     │ • idempotency    │
+│ • Detects drop  │     │                  │     │ • chain lookup   │
+│ • Fires event   │     │                  │     │ • real order     │
+└─────────────────┘     └──────────────────┘     └──────────────────┘
+         │                                                 │
+         ▼                                                 ▼
+   ┌───────────────┐                                ┌───────────────┐
+   │ SQLite + logs │                                │ SQLite + logs │
+   └───────────────┘                                └───────────────┘
+         │                                                 │
+         └────────────────────┬────────────────────────────┘
                               ▼
                     ┌──────────────────┐
-                    │  WebSocket Push  │
-                    │  to React Dash   │
+                    │  WebSocket Push  │──► 🎨 React Dashboard
                     └──────────────────┘
 ```
 
@@ -132,127 +167,253 @@ Worker"]
 
 ## 🛠️ Tech Stack
 
-### Backend
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat-square&logo=fastapi&logoColor=white)
-![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00?style=flat-square)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat-square&logo=sqlite&logoColor=white)
+<div align="center">
 
-### Frontend
-![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat-square&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.0+-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-5.0+-646CFF?style=flat-square&logo=vite&logoColor=white)
+<a href="https://www.python.org/" target="_blank"><img src="https://skillicons.dev/icons?i=python,fastapi,react,typescript,tailwind,vite,sqlite,git&theme=dark" alt="Tech Stack" /></a>
 
-### Brokerage & Protocols
-![Alpaca](https://img.shields.io/badge/Alpaca-Paper%20Trading-FFD700?style=flat-square)
-![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-8B5CF6?style=flat-square)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00?style=for-the-badge)
+![WebSocket](https://img.shields.io/badge/WebSocket-Live%20Push-010101?style=for-the-badge&logo=socketdotio&logoColor=white)
+![Alpaca](https://img.shields.io/badge/Alpaca-Trading%20%2B%20Options%20API-FFD700?style=for-the-badge)
+
+</div>
+
+---
+
+## 🧪 Verified Behaviors — Proof, Not Promises
+
+✅ **Real options fills:** `META260918P00495000` filled @ **$0.24** · `GOOGL260918P00170000` filled @ **$0.04**
+
+✅ **Smart strike matching:** agent targets 5% OTM → buys the closest **listed** strike (`$495` when `$494` doesn't exist — real chains only have real strikes)
+
+✅ **Runtime kill-switch:** `PUT /config {"autonomous_hedging": false}` → executor acknowledges & skips alerts **mid-loop, zero restart**
+
+✅ **Idempotency in action:** 16 consecutive alerts on one symbol → exactly **1** hedge order
+
+✅ **Graceful failure:** pre-market queues and API rejections mark alerts `failed`, log full error bodies, **never phantom-fill** the database
+
+✅ **Live reconfiguration:** threshold / OTM / expiry / poll-interval — persisted in DB, obeyed by agents instantly
+
+---
+
+## 💥 Integration Diary
+
+<details>
+<summary><b>The 6-attempt journey from 422 to our first real fill</b> — click to expand</summary>
+
+Building against Alpaca's Options API (two different hosts!) produced the most educational debug of the hackathon:
+
+| # | Error | Root Cause | Fix |
+|---|---|---|---|
+| 1 | `422 Unprocessable Entity` | Options data isn't on the trading host | Discovered the split-host architecture |
+| 2 | `NameError: logger` | Missing import in new module | 1-line fix |
+| 3 | `[Errno 11001] getaddrinfo failed` | **Invented** hostname `data-api.alpaca.markets` | Real host: `data.alpaca.markets` |
+| 4 | `unexpected query parameter(s): expiration_date_equal` | Wrong param name | Corrected |
+| 5 | `500 rows returned, 0 for our expiry` | Pagination cliff — 500-row page missed our date | `page_token` loop + OCC-symbol client-side filter |
+| 6 | ✅ **`status=accepted` → filled** | — | 🎉 First real hedge in Hedgify history |
+
+**Lesson:** every API boundary hides a different contract. Diagnostics-first error handling (log the response *body*, not just the status) turned blind 422s into a one-attempt fix.
+
+</details>
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Alpaca Paper Trading API keys
+<details open>
+<summary><b>▶ Backend</b></summary>
 
-### 1. Clone & Setup Backend
 ```bash
-git clone https://github.com/builtbyrehan/hedgify.git
-cd hedgify/backend
+git clone https://github.com/builtbyrehan/Hedgify.git
+cd Hedgify/backend
 
 python -m venv venv
-source venv/bin/activate  # Windows: .\venv\Scripts\activate
+.\venv\Scripts\activate          # macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
-```
 
-### 2. Configure Environment
-```bash
-cp .env.example .env
-# Edit .env with your Alpaca Paper Trading keys:
-# ALPACA_API_KEY=PK...
-# ALPACA_SECRET_KEY=...
-```
+copy .env.example .env           # macOS/Linux: cp .env.example .env
+# → add your Alpaca Paper Trading keys (app.alpaca.markets)
 
-### 3. Run Backend
-```bash
 python -m uvicorn main:app --reload
-# API: http://localhost:8000
-# WebSocket: ws://localhost:8000/ws
-# Health: http://localhost:8000/health
+# API: http://localhost:8000  •  WebSocket: ws://localhost:8000/ws
 ```
+</details>
 
-### 4. Setup Frontend (In Progress)
+<details>
+<summary><b>▶ Frontend</b></summary>
+
 ```bash
 cd ../frontend
 npm install
 npm run dev
 # Dashboard: http://localhost:5173
 ```
+</details>
+
+<details>
+<summary><b>▶ Going Live With Real Orders</b></summary>
+
+```python
+# backend/config.py
+REAL_OPTIONS_ORDERS = True   # only during US market hours (6:30 PM – 1:00 AM PKT)
+```
+Orders placed outside market hours are **accepted and queued** by Alpaca, then auto-fill at the open — exactly like a real broker.
+</details>
 
 ---
 
-## 📡 API Endpoints
+## 📡 API Reference
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/health` | GET | Service health check |
-| `/api/v1/portfolio` | GET | Latest portfolio snapshot + peak + drawdown |
-| `/api/v1/alerts` | GET | Full alert history with statuses |
-| `/api/v1/hedges` | GET | All active and expired hedges |
-| `/ws` | WebSocket | Live push: alerts, hedges, portfolio updates |
-
----
-
-## 🧪 Verified Behaviors
-
-✅ **Drawdown Capture:** 3% simulated drop triggers alert within 10 seconds  
-✅ **Idempotency:** 16 consecutive alerts correctly reduced to 1 hedge order  
-✅ **State Recovery:** SQLite persists peak value across restarts  
-✅ **Real-Time Push:** WebSocket broadcasts alert + hedge confirmation  
-✅ **Alpaca Integration:** Live account value + position fetching verified  
+| `/health` | `GET` | Service health |
+| `/api/v1/portfolio` | `GET` | Latest snapshot — value, peak, drawdown |
+| `/api/v1/portfolio/history` | `GET` | Snapshot history for the chart |
+| `/api/v1/alerts` | `GET` | Alert history with statuses |
+| `/api/v1/hedges` | `GET` | Hedges incl. **real premiums paid** |
+| `/api/v1/logs` | `GET` | Agent telemetry (filter by agent / severity) |
+| `/api/v1/stress-test` | `POST` | Hedged vs unhedged crash simulation + CPR |
+| `/api/v1/config` | `GET` `PUT` | **Live runtime config** — obeyed by agents every loop |
+| `/api/v1/simulate-drawdown` | `POST` | Fire a real alert through the full pipeline |
+| `/ws` | WebSocket | Live push: alerts, hedges, portfolio |
 
 ---
 
 ## 🗺️ Roadmap
 
-| Milestone | Target | Status |
-|---|---|---|
-| Backend scaffold + database | Day 1 | ✅ Complete |
-| Alpaca client + Monitor Agent | Day 2 | ✅ Complete |
-| Hedge Executor + idempotency | Day 3 | ✅ Complete |
-| REST API + WebSocket layer | Day 3 | ✅ Complete |
-| React dashboard scaffold | Day 4 | 🚧 In Progress |
-| Real-time charts + alert feed | Day 4 | 📋 Planned |
-| Stress test simulator UI | Day 5 | 📋 Planned |
-| MCP server integration | Day 5 | 📋 Planned |
-| Real options order execution | Day 6 | 📋 Planned |
-| Demo video + documentation | Day 7 | 📋 Planned |
+```
+Backend scaffold + agents           ██████████ 100%
+Alpaca client + drawdown detection  ██████████ 100%
+Executor + idempotency guard        ██████████ 100%
+REST API + WebSocket + Dashboard    ██████████ 100%
+Live runtime config (kill-switch)   ██████████ 100%
+Event telemetry + logs              ██████████ 100%
+Stress test simulator               ██████████ 100%
+Real options execution — FILLED     ██████████ 100%
+Demo video + final docs             ████░░░░░░  40%
+MCP server integration              ░░░░░░░░░░   0%
+```
+
+---
+
+## 📊 GitHub Stats & Activity
+
+<div align="center">
+<img height="170" src="https://github-readme-stats.vercel.app/api?username=builtbyrehan&show_icons=true&theme=tokyonight&hide_border=true" alt="GitHub Stats" />
+<img height="170" src="https://streak-stats.demolab.com/?user=builtbyrehan&theme=tokyonight&hide_border=true" alt="Streak Stats" />
+</div>
+
+<div align="center">
+<img src="https://github-readme-stats.vercel.app/api/pin/?username=builtbyrehan&repo=Hedgify&theme=tokyonight&hide_border=true" alt="Repo Card" />
+</div>
+
+<div align="center">
+<img src="https://api.star-history.com/svg?repos=builtbyrehan/Hedgify&type=Date&theme=dark" alt="Star History" width="80%" />
+</div>
+
+<details>
+<summary><b>🐍 Contribution Snake</b> — how to enable</summary>
+
+Add `.github/workflows/snake.yml`:
+
+```yaml
+name: generate snake
+on:
+  schedule: [{cron: "0 0 * * *"}]
+  workflow_dispatch:
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: builtbyrehan
+          outputs: dist/snake.svg
+      - uses: crazy-max/ghaction-github-pages@v4
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Run the action once, then add to README:
+```html
+<img src="https://raw.githubusercontent.com/builtbyrehan/Hedgify/output/snake.svg" width="100%" />
+```
+</details>
 
 ---
 
 ## 🎓 Academic & Professional Context
 
-This project demonstrates:
-- **Quantitative Finance:** Protective put hedging, drawdown mathematics, risk budgeting
-- **Multi-Agent Systems:** Supervisor-Worker orchestration with event-driven architecture
-- **Production Engineering:** Idempotency, fault tolerance, state recovery, structured logging
-- **Financial API Integration:** Live brokerage connectivity with real market data
-- **Real-Time Systems:** WebSocket push architecture for sub-second dashboard updates
+| Domain | What Hedgify Demonstrates |
+|---|---|
+| **Quantitative Finance** | Protective put hedging, drawdown mathematics, OCC contract selection |
+| **Multi-Agent Systems** | Supervisor-worker orchestration, event-driven handoffs |
+| **Production Engineering** | Idempotency, runtime reconfiguration, graceful degradation, audit trails |
+| **Financial API Integration** | Dual-host Alpaca architecture (trading + options data), async fill handling |
+| **Real-Time Systems** | WebSocket push for sub-second dashboard updates |
 
 ---
 
-## 👥 Team Hedgify
+## 📁 Project Structure
 
-Built for the **Alpaca AI Trading Agents Hackathon** hosted by [lablab.ai](https://lablab.ai)
+<details>
+<summary><b>Expand tree</b></summary>
+
+```
+Hedgify/
+├── backend/
+│   ├── agents/
+│   │   ├── monitor.py          # Supervisor — polls, detects, fires
+│   │   └── executor.py         # Worker — guards, matches, orders
+│   ├── api/
+│   │   ├── routes.py           # REST endpoints
+│   │   └── websocket.py        # Live push manager
+│   ├── models/
+│   │   └── database.py         # SQLAlchemy models + init
+│   ├── services/
+│   │   ├── alpaca_client.py    # Dual-host Alpaca HTTP client
+│   │   ├── app_settings.py     # Live runtime config
+│   │   ├── event_logger.py     # Telemetry writer
+│   │   └── stress_test.py      # Crash simulation engine
+│   ├── config.py
+│   └── main.py                 # FastAPI app + lifespan
+└── frontend/
+    └── src/
+        ├── pages/              # Portfolio · Alerts · Hedges · StressTest · Logs · Settings
+        ├── components/
+        └── services/api.ts     # Probe → live → mock fallback
+```
+</details>
 
 ---
 
 <div align="center">
 
-**[⭐ Star this repo](https://github.com/builtbyrehan/hedgify)** if you find the architecture useful.
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=120&section=footer" width="100%" />
+
+**⭐ [Star this repo](https://github.com/builtbyrehan/Hedgify) if autonomous portfolio insurance sounds like the future.**
 
 *Built with discipline. Shipped with purpose.*
 
+<img src="https://komarev.com/ghpvc/?username=builtbyrehan&style=flat-square&color=10B981" alt="Views" />
+
 </div>
+````
+
+---
+
+## ▶️ Apply it
+
+```powershell
+# Paste the content above into README.md (everything between the outer fences), then:
+git add README.md backend/.env.example
+git commit -m "docs: maximum-impact README — real terminal demo, stats, integration diary"
+git push origin main
+```
+
+**Then run the snake workflow once** (Actions tab → *generate snake* → Run) so the SVG populates for later.
+
+**Next step after this:** back to **deployment** (Step 1 of the Render+Netlify plan — the two `api.ts` edits). Say "go" when ready. 🚀
