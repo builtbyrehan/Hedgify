@@ -12,7 +12,7 @@ export function MonitorMock() {
     function tick() {
       val += (Math.random() - 0.48) * 80
       val = Math.max(120000, Math.min(128000, val))
-      dd = ((127104 - val) / 127104) * 100
+      dd = ((128104 - val) / 128104) * 100
       setPortfolioValue(Math.round(val))
       setDrawdown(Math.round(dd * 100) / 100)
       frameRef.current = requestAnimationFrame(tick)
@@ -39,7 +39,7 @@ export function MonitorMock() {
         </div>
         <div className="p-4 rounded-xl border" style={{ backgroundColor: 'rgba(10,11,13,0.6)', borderColor: 'rgba(255,255,255,0.04)' }}>
           <div className="text-[9px] font-mono mb-1.5 uppercase tracking-wider" style={{ color: '#54565C' }}>peak</div>
-          <div className="font-mono font-bold text-[18px] tabular-nums" style={{ color: '#ECEEF1' }}>$127,104</div>
+          <div className="font-mono font-bold text-[18px] tabular-nums" style={{ color: '#ECEEF1' }}>$128,104</div>
         </div>
       </div>
 
@@ -233,7 +233,7 @@ export function StressTestMock() {
     const t1 = setTimeout(() => setRunning(true), 1000)
     const t2 = setTimeout(() => {
       setRunning(false)
-      setResult({ unhedged: -2300, hedged: -1820, saved: 480 })
+      setResult({ unhedged: -3450, hedged: -1200, saved: 2250 })
     }, 2500)
     const reset = setTimeout(() => { setResult(null); setRunning(false) }, 6000)
     const loop = setInterval(() => {
@@ -242,7 +242,7 @@ export function StressTestMock() {
       setTimeout(() => setRunning(true), 500)
       setTimeout(() => {
         setRunning(false)
-        setResult({ unhedged: -2300, hedged: -1820, saved: 480 })
+        setResult({ unhedged: -3450, hedged: -1200, saved: 2250 })
       }, 1800)
     }, 6000)
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(reset); clearInterval(loop) }
