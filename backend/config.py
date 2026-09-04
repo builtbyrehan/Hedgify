@@ -28,3 +28,4 @@ DATABASE_URL = "sqlite:///./portfolio_state.db"
 # Logging
 LOG_LEVEL = "INFO"
 PUT_PREMIUM = 50.0
+REAL_OPTIONS_ORDERS = True   # market is open — going live
