@@ -130,3 +130,32 @@ export async function runStressTest(symbol: string, dropPct: number): Promise<St
   }
   return null
 }
+
+// ─── Runtime Config (Settings page) ───────────────────────────────
+
+export async function fetchConfig(): Promise<Record<string, any> | null> {
+  if (!_apiBase) return null
+  try {
+    const r = await fetch(`${_apiBase}/api/v1/config`)
+    if (!r.ok) return null
+    return await r.json()
+  } catch { return null }
+}
+
+export async function updateConfig(updates: Record<string, any>): Promise<{ ok: boolean; error?: string }> {
+  if (!_apiBase) return { ok: false, error: 'Backend offline' }
+  try {
+    const r = await fetch(`${_apiBase}/api/v1/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates }),
+    })
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}))
+      return { ok: false, error: data.detail ?? `HTTP ${r.status}` }
+    }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'Network error' }
+  }
+}
