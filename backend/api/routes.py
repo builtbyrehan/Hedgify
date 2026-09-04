@@ -1,7 +1,7 @@
 """
 FastAPI REST routes — portfolio data, alerts, stress test endpoints.
 """
-
+from services.stress_test import DEMO_PRICES
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List
@@ -69,7 +69,8 @@ async def simulate_drawdown(payload: dict = Body(default={}), db: Session = Depe
     db.commit()
 
     # CHANGED: real price lookup (fixes wrong strike on non-AAPL symbols), fallback 230
-    price = 230.0
+
+    price = DEMO_PRICES.get(symbol.upper(), 230.0)
     try:
         positions = alpaca.get_positions()
         for pos in positions:
