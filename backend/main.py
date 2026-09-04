@@ -47,7 +47,6 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api/v1")
 app.add_api_websocket_route("/ws", websocket_manager.endpoint)
 
-
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {"status": "ok", "service": "hedgify"}
