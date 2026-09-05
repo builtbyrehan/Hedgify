@@ -81,6 +81,8 @@ When retail investors hold equity portfolios, unexpected market shocks cause rap
 | 💾 **Full Audit Trail** | ✅ | SQLite: snapshots, alerts, hedges, event telemetry |
 | 📊 **React Dashboard** | ✅ | Portfolio chart · alert feed · hedges · logs · stress test · **live settings** |
 | 🧪 **Stress Test Simulator** | ✅ | Synthetic crash → hedged vs unhedged → **CPR gauge** |
+| 🔐 **API Authentication** | ✅ | All endpoints protected with API key auth |
+| 🛡️ **Async HTTP Client** | ✅ | Non-blocking Alpaca API calls (no event loop freeze) |
 | 🔌 **MCP Bridge** | 📋 | Model Context Protocol for universal broker support |
 
 ---
@@ -233,9 +235,10 @@ pip install -r requirements.txt
 
 copy .env.example .env           # macOS/Linux: cp .env.example .env
 # → add your Alpaca Paper Trading keys (app.alpaca.markets)
+# → add any secret string as HEDGIFY_API_KEY (used for API auth)
 
 python -m uvicorn main:app --reload
-# API: http://localhost:8000  •  WebSocket: ws://localhost:8000/ws
+# API: http://localhost:8000  •  WebSocket: ws://localhost:8000/ws?token=<your_key>
 ```
 </details>
 
@@ -253,9 +256,9 @@ npm run dev
 <details>
 <summary><b>▶ Going Live With Real Orders</b></summary>
 
-```python
-# backend/config.py
-REAL_OPTIONS_ORDERS = True   # only during US market hours (6:30 PM – 1:00 AM PKT)
+```bash
+# In your .env file:
+REAL_OPTIONS_ORDERS=true   # only during US market hours (6:30 PM – 1:00 AM PKT)
 ```
 Orders placed outside market hours are **accepted and queued** by Alpaca, then auto-fill at the open — exactly like a real broker.
 </details>
@@ -264,9 +267,11 @@ Orders placed outside market hours are **accepted and queued** by Alpaca, then a
 
 ## 📡 API Reference
 
+All endpoints (except `/health`) require authentication via `X-API-Key` header or `?api_key=` query parameter.
+
 | Endpoint | Method | Description |
 |---|---|---|
-| `/health` | `GET` | Service health |
+| `/health` | `GET` | Service health (no auth required) |
 | `/api/v1/portfolio` | `GET` | Latest snapshot — value, peak, drawdown |
 | `/api/v1/portfolio/history` | `GET` | Snapshot history for the chart |
 | `/api/v1/alerts` | `GET` | Alert history with statuses |
@@ -275,7 +280,24 @@ Orders placed outside market hours are **accepted and queued** by Alpaca, then a
 | `/api/v1/stress-test` | `POST` | Hedged vs unhedged crash simulation + CPR |
 | `/api/v1/config` | `GET` `PUT` | **Live runtime config** — obeyed by agents every loop |
 | `/api/v1/simulate-drawdown` | `POST` | Fire a real alert through the full pipeline |
-| `/ws` | WebSocket | Live push: alerts, hedges, portfolio |
+| `/ws?token=<key>` | WebSocket | Live push: alerts, hedges, portfolio (token auth) |
+
+**Example:**
+```bash
+curl -H "X-API-Key: your_secret_key" http://localhost:8000/api/v1/portfolio
+```
+
+---
+
+## 🔐 Security
+
+| Feature | Implementation |
+|---|---|
+| **API Authentication** | All REST endpoints require `X-API-Key` header or `?api_key=` query param |
+| **WebSocket Auth** | Token-based: `ws://localhost:8000/ws?token=<your_key>` |
+| **CORS** | Restricted to specific origins (no wildcard) |
+| **Fail-Fast Validation** | Server won't start if required env vars are missing |
+| **Global Error Handler** | Catches unhandled exceptions, returns generic error (no stack trace leak) |
 
 ---
 
@@ -290,6 +312,7 @@ Live runtime config (kill-switch)   ██████████ 100%
 Event telemetry + logs              ██████████ 100%
 Stress test simulator               ██████████ 100%
 Real options execution — FILLED     ██████████ 100%
+Security + auth + code review       ██████████ 100%
 Demo video + final docs             ████░░░░░░  40%
 MCP server integration              ░░░░░░░░░░   0%
 ```
@@ -369,17 +392,19 @@ Hedgify/
 │   │   ├── monitor.py          # Supervisor — polls, detects, fires
 │   │   └── executor.py         # Worker — guards, matches, orders
 │   ├── api/
-│   │   ├── routes.py           # REST endpoints
-│   │   └── websocket.py        # Live push manager
+│   │   ├── routes.py           # REST endpoints (authenticated)
+│   │   └── websocket.py        # Live push manager (token auth)
 │   ├── models/
 │   │   └── database.py         # SQLAlchemy models + init
 │   ├── services/
-│   │   ├── alpaca_client.py    # Dual-host Alpaca HTTP client
+│   │   ├── alpaca_client.py    # Dual-host Alpaca HTTP client (async)
 │   │   ├── app_settings.py     # Live runtime config
 │   │   ├── event_logger.py     # Telemetry writer
 │   │   └── stress_test.py      # Crash simulation engine
-│   ├── config.py
-│   └── main.py                 # FastAPI app + lifespan
+│   ├── config.py               # Environment variables + constants
+│   ├── main.py                 # FastAPI app + lifespan
+│   ├── requirements.txt        # Python dependencies
+│   └── .env.example            # Environment template
 └── frontend/
     └── src/
         ├── pages/              # Portfolio · Alerts · Hedges · StressTest · Logs · Settings
