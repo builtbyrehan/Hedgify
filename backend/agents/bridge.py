@@ -131,12 +131,25 @@ class MCPClient:
         resp.raise_for_status()
         data = resp.json()
 
+        # Check for MCP error response
+        if "error" in data:
+            return HedgeOrderResult(
+                success=False,
+                status=OrderStatus.REJECTED,
+                error=data.get("error", "MCP tool error"),
+                path_used="mcp",
+                symbol=symbol,
+                strike_price=strike_price,
+                expiry_date=expiration_date,
+                quantity=quantity,
+            )
+
         return HedgeOrderResult(
             success=data.get("status") == "filled",
             order_id=data.get("order_id"),
             status=OrderStatus(data.get("status", "rejected")),
             filled_price=data.get("filled_price"),
-            premium=data.get("filled_price", 0) * 100 if data.get("filled_price") else None,
+            premium=data.get("premium") or (data.get("filled_price", 0) * 100 if data.get("filled_price") else None),
             path_used="mcp",
             symbol=symbol,
             strike_price=strike_price,
