@@ -35,6 +35,26 @@ class OrderStatus(str, Enum):
     ERROR = "error"
 
 
+# Map Alpaca/MCP statuses to our enum
+_STATUS_MAP = {
+    "filled": OrderStatus.FILLED,
+    "accepted": OrderStatus.PENDING,
+    "new": OrderStatus.PENDING,
+    "pending": OrderStatus.PENDING,
+    "partial_fill": OrderStatus.PENDING,
+    "canceled": OrderStatus.REJECTED,
+    "cancelled": OrderStatus.REJECTED,
+    "expired": OrderStatus.REJECTED,
+    "rejected": OrderStatus.REJECTED,
+    "error": OrderStatus.ERROR,
+}
+
+
+def _map_status(raw_status: str) -> OrderStatus:
+    """Map Alpaca/MCP status string to OrderStatus enum."""
+    return _STATUS_MAP.get(raw_status.lower(), OrderStatus.PENDING)
+
+
 class HedgeOrderResult(BaseModel):
     """Typed result from MCP bridge — executor.py persists this to SQLite."""
 
@@ -147,7 +167,7 @@ class MCPClient:
         return HedgeOrderResult(
             success=data.get("status") == "filled",
             order_id=data.get("order_id"),
-            status=OrderStatus(data.get("status", "rejected")),
+            status=_map_status(data.get("status", "rejected")),
             filled_price=data.get("filled_price"),
             premium=data.get("premium") or (data.get("filled_price", 0) * 100 if data.get("filled_price") else None),
             path_used="mcp",
@@ -331,19 +351,18 @@ async def buy_protective_put(
                 severity="error",
             )
 
-        # If MCP failed, try direct Alpaca fallback
-        if attempt == 1:
-            logger.info("Attempting direct Alpaca fallback...")
-            try:
-                result = await direct_alpaca_order(
-                    symbol, strike_price, expiry_date, quantity, event_key
-                )
-                if result.success:
-                    return result
-                last_error = result.error
-            except Exception as e:
-                last_error = str(e)
-                logger.error(f"Direct fallback also failed: {e}")
+        # If MCP failed, try direct Alpaca fallback on every attempt
+        logger.info("Attempting direct Alpaca fallback...")
+        try:
+            result = await direct_alpaca_order(
+                symbol, strike_price, expiry_date, quantity, event_key
+            )
+            if result.success:
+                return result
+            last_error = result.error
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"Direct fallback also failed: {e}")
 
         # Wait before retry (except on last attempt)
         if attempt < MAX_RETRIES:

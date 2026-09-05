@@ -73,6 +73,7 @@ class MCPResponse(BaseModel):
     order_id: str
     status: str  # "filled" | "pending" | "rejected"
     filled_price: Optional[float] = None
+    premium: Optional[float] = None
     timestamp: str
 
 
@@ -190,10 +191,16 @@ async def place_order(
 
 async def handle_buy_protective_put(params: dict) -> dict:
     """Handle buy_protective_put tool call."""
-    symbol = params.get("symbol")
-    strike_price = params.get("strike_price")
-    expiration_date = params.get("expiration_date")
-    quantity = params.get("quantity", 1)
+    # Validate parameters through Pydantic model
+    try:
+        validated = BuyProtectivePutParams(**params)
+    except Exception as e:
+        return {"error": f"Invalid parameters: {e}", "code": "INVALID_PARAMS"}
+
+    symbol = validated.symbol
+    strike_price = validated.strike_price
+    expiration_date = validated.expiration_date
+    quantity = validated.quantity
 
     logger.info(
         f"MCP tool: buy_protective_put({symbol}, ${strike_price}, "
@@ -208,10 +215,8 @@ async def handle_buy_protective_put(params: dict) -> dict:
             "code": "CONTRACT_NOT_FOUND",
         }
 
-    # Use the actual listed strike (may differ from target)
-    actual_strike = float(
-        contract["symbol"][-13:-5]  # parse from OCC symbol
-    ) / 1000 if len(contract["symbol"]) >= 21 else strike_price
+    # Parse actual strike from OCC symbol (last 8 chars are strike * 1000)
+    actual_strike = int(contract["symbol"][-8:]) / 1000 if len(contract["symbol"]) >= 21 else strike_price
 
     logger.info(
         f"Chain match: {contract['symbol']} (target ${strike_price}, "
@@ -258,6 +263,7 @@ async def mcp_call(request: MCPToolCall):
             order_id=result.get("order_id", ""),
             status=result.get("status", "rejected"),
             filled_price=result.get("filled_price"),
+            premium=result.get("premium"),
             timestamp=result.get("timestamp", datetime.now(timezone.utc).isoformat()),
         )
 
