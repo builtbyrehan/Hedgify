@@ -13,7 +13,7 @@ from typing import Optional
 
 import httpx
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from config import (
     ALPACA_API_KEY,
@@ -229,7 +229,7 @@ async def direct_alpaca_order(
         return HedgeOrderResult(
             success=True,
             order_id=result.get("order_id"),
-            status=OrderStatus.FILLED,
+            status=_map_status(result.get("status", "filled")),
             filled_price=result.get("filled_price"),
             premium=result.get("premium"),
             path_used="direct_fallback",
