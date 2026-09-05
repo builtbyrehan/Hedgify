@@ -3,16 +3,26 @@ Hedgify Configuration — Single source of truth for all constants.
 """
 
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Alpaca Paper Trading Credentials
+# Alpaca Paper Trading Credentials — fail fast if missing
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
-ALPACA_BASE_URL = "https://paper-api.alpaca.markets" # it's the address where the code will send requests to the Alpaca API
-ALPACA_DATA_URL = "https://data.alpaca.markets" # it's the address where the code will fetch market data from the Alpaca API
 
+if not ALPACA_API_KEY or not ALPACA_SECRET_KEY:
+    print("FATAL: ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables are required.", file=sys.stderr)
+    sys.exit(1)
+
+ALPACA_BASE_URL = "https://paper-api.alpaca.markets"
+
+# Hedgify API Key — fail fast if missing
+HEDGIFY_API_KEY = os.getenv("HEDGIFY_API_KEY")
+if not HEDGIFY_API_KEY:
+    print("FATAL: HEDGIFY_API_KEY environment variable is required for API authentication.", file=sys.stderr)
+    sys.exit(1)
 
 # Hedging Strategy Parameters
 DRAWDOWN_THRESHOLD = 0.02          # 2% trigger
@@ -28,4 +38,4 @@ DATABASE_URL = "sqlite:///./portfolio_state.db"
 # Logging
 LOG_LEVEL = "INFO"
 PUT_PREMIUM = 50.0
-REAL_OPTIONS_ORDERS = True   # market is open — going live
+REAL_OPTIONS_ORDERS = os.getenv("REAL_OPTIONS_ORDERS", "true").lower() in ("true", "1", "yes")

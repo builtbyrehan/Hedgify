@@ -3,7 +3,7 @@ Alpaca HTTP client — direct REST API via httpx.
 Trading API: paper-api.alpaca.markets | Options data API: data-api.alpaca.markets
 """
 
-import time
+import asyncio
 
 import httpx
 from loguru import logger
@@ -18,29 +18,34 @@ class AlpacaClient:
             "APCA-API-KEY-ID": ALPACA_API_KEY,
             "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
         }
-        self.client = httpx.Client(base_url=ALPACA_BASE_URL, headers=headers)
-        self.data_client = httpx.Client(base_url=ALPACA_DATA_URL, headers=headers)
+        self.client = httpx.AsyncClient(base_url=ALPACA_BASE_URL, headers=headers)
+        self.data_client = httpx.AsyncClient(base_url=ALPACA_DATA_URL, headers=headers)
         self.last_chain_error = None
 
-    def get_account(self):
+    async def close(self):
+        """Close HTTP client connections on shutdown."""
+        await self.client.aclose()
+        await self.data_client.aclose()
+
+    async def get_account(self):
         """Fetch paper account details."""
-        resp = self.client.get("/v2/account")
+        resp = await self.client.get("/v2/account")
         resp.raise_for_status()
         return resp.json()
 
-    def get_positions(self):
+    async def get_positions(self):
         """Fetch current stock holdings."""
-        resp = self.client.get("/v2/positions")
+        resp = await self.client.get("/v2/positions")
         resp.raise_for_status()
         return resp.json()
 
-    def get_latest_price(self, symbol: str):
+    async def get_latest_price(self, symbol: str):
         """Fetch real-time stock quote."""
-        resp = self.client.get(f"/v2/assets/{symbol}")
+        resp = await self.client.get(f"/v2/assets/{symbol}")
         resp.raise_for_status()
         return resp.json()
 
-    def _find_put_contract(self, symbol: str, target_strike: float, expiry: str):
+    async def _find_put_contract(self, symbol: str, target_strike: float, expiry: str):
         """Find the REAL listed put contract closest to our target strike (options data API)."""
         try:
             yymmdd = expiry.replace("-", "")[2:]
@@ -50,7 +55,7 @@ class AlpacaClient:
                 params = {"type": "put", "expiration_date": expiry, "limit": 500}
                 if page_token:
                     params["page_token"] = page_token
-                resp = self.data_client.get(
+                resp = await self.data_client.get(
                     f"/v1beta1/options/snapshots/{symbol}", params=params
                 )
                 if resp.status_code >= 400:
@@ -105,7 +110,7 @@ class AlpacaClient:
 
             self.last_chain_error = None
             logger.info(
-                f"🔎 Chain match for {symbol}: {best} "
+                f"Chain match for {symbol}: {best} "
                 f"(target ${target_strike}, ask ${best_ask})"
             )
             return {"symbol": best, "ask": best_ask}
@@ -115,11 +120,11 @@ class AlpacaClient:
             logger.warning(f"Chain lookup failed for {symbol}: {e}")
             return None
 
-    def submit_option_order(
+    async def submit_option_order(
         self, symbol: str, strike: float, expiry: str, qty: int = 1
     ):
         """Submit a protective PUT order — uses the REAL listed contract closest to target strike."""
-        contract = self._find_put_contract(symbol, strike, expiry)
+        contract = await self._find_put_contract(symbol, strike, expiry)
         if not contract:
             reason = self.last_chain_error or "unknown reason"
             return {
@@ -135,11 +140,11 @@ class AlpacaClient:
             "time_in_force": "day",
             "position_intent": "buy_to_open",
         }
-        resp = self.client.post("/v2/orders", json=payload)
+        resp = await self.client.post("/v2/orders", json=payload)
         if resp.status_code >= 400:
             detail = resp.text[:300]
             logger.error(
-                f"❌ Alpaca rejected {contract['symbol']}: {resp.status_code} {detail}"
+                f"Alpaca rejected {contract['symbol']}: {resp.status_code} {detail}"
             )
             return {"success": False, "error": f"Alpaca {resp.status_code}: {detail}"}
 
@@ -152,19 +157,19 @@ class AlpacaClient:
         for _ in range(4):
             if filled_price > 0:
                 break
-            time.sleep(2)
+            await asyncio.sleep(2)
             try:
-                check = self.client.get(f"/v2/orders/{order_id}")
+                check = await self.client.get(f"/v2/orders/{order_id}")
                 if check.status_code < 400:
                     od = check.json()
                     filled_price = float(od.get("filled_avg_price") or 0)
                     status = od.get("status", status)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Order poll failed for {order_id}: {e}")
 
         premium = (filled_price or contract["ask"]) * 100  # 1 contract = 100 shares
         logger.info(
-            f"🧾 REAL ORDER: {contract['symbol']} | id={order_id[:8]} status={status} | "
+            f"REAL ORDER: {contract['symbol']} | id={order_id[:8]} status={status} | "
             f"fill=${filled_price} | premium=${premium:,.2f}"
         )
         return {

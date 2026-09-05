@@ -3,7 +3,7 @@ Event Logger — appends structured telemetry to the event_logs table.
 Powers GET /api/v1/logs. Never raises — logging must not break agents.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from loguru import logger as loguru_logger
 
@@ -20,7 +20,7 @@ def log_event(agent: str, event_type: str, message: str, severity: str = "info")
                 event_type=event_type,
                 message=message,
                 severity=severity,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             ))
             db.commit()
         finally:

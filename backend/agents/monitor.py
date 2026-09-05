@@ -4,7 +4,7 @@ Monitor Agent (Supervisor) — polls portfolio every 15 min, detects drawdowns, 
 from services.app_settings import get_setting
 from services.event_logger import log_event
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from loguru import logger
 
 from models.database import SessionLocal, PortfolioSnapshot, Alert
@@ -19,8 +19,8 @@ class MonitorAgent:
         self._poll_count = 0
 
     async def run_loop(self):
-        """Infinite loop: check portfolio, sleep 15 min, repeat."""
-        logger.info("🟢 Monitor Agent started — watching your portfolio")
+        """Infinite loop: check portfolio, sleep 15 min, repeat. Auto-restarts on crash."""
+        logger.info("Monitor Agent started — watching your portfolio")
         log_event(
             "Monitor", "AGENT_START", "Monitor agent started — watching your portfolio"
         )
@@ -28,16 +28,22 @@ class MonitorAgent:
             try:
                 await self.check_portfolio()
             except Exception as e:
-                logger.error(f"🔴 Monitor error: {e}")
+                logger.exception(f"Monitor error: {e}")
+                log_event(
+                    "Monitor",
+                    "AGENT_ERROR",
+                    f"Monitor loop error: {e}",
+                    severity="error",
+                )
             interval = get_setting("poll_interval_seconds", POLL_INTERVAL_SECONDS)
             await asyncio.sleep(interval)
 
     async def check_portfolio(self):
         """One poll cycle: fetch account, calculate, compare, alert if needed."""
-        account = alpaca.get_account()
+        account = await alpaca.get_account()
         portfolio_value = float(account.get("portfolio_value", 0)) * 0.97
         cash = float(account.get("cash", 0))
-        positions = alpaca.get_positions()
+        positions = await alpaca.get_positions()
 
         db = SessionLocal()
         try:
@@ -56,30 +62,30 @@ class MonitorAgent:
             db.commit()
 
             logger.info(
-                f"📊 Portfolio: ${portfolio_value:,.2f} | Cash: ${cash:,.2f} | Peak: ${peak_value:,.2f} | Drawdown: {drawdown:.2%}"
+                f"Portfolio: ${portfolio_value:,.2f} | Cash: ${cash:,.2f} | Peak: ${peak_value:,.2f} | Drawdown: {drawdown:.2%}"
             )
 
-            if drawdown >= DRAWDOWN_THRESHOLD:
+            if drawdown >= threshold:
                 logger.warning(
-                    f"🚨 DRAWDOWN ALERT: {drawdown:.2%} — firing hedge event!"
+                    f"DRAWDOWN ALERT: {drawdown:.2%} — firing hedge event!"
                 )
                 log_event(
                     "Monitor",
                     "DRAWDOWN_ALERT",
-                    f"Drawdown breached {DRAWDOWN_THRESHOLD:.2%} threshold ({drawdown:.2%}). Alert fired.",
+                    f"Drawdown breached {threshold:.2%} threshold ({drawdown:.2%}). Alert fired.",
                     severity="warning",
                 )
                 await self._fire_alert(
                     db, positions, portfolio_value, peak_value, drawdown
                 )
             else:
-                logger.info("✅ All clear — portfolio healthy")
+                logger.info("All clear — portfolio healthy")
                 self._poll_count += 1
                 if self._poll_count % 6 == 0:  # sample logs: 10s poll -> ~1 event/min
                     log_event(
                     "Monitor",
                     "PORTFOLIO_CHECK",
-                    f"Portfolio drawdown at {drawdown:.2%}, below {DRAWDOWN_THRESHOLD:.2%} threshold. No action required.",
+                    f"Portfolio drawdown at {drawdown:.2%}, below {threshold:.2%} threshold. No action required.",
                 )
 
         finally:
@@ -93,7 +99,7 @@ class MonitorAgent:
             .first()
         )
         if latest:
-            return max(latest.peak_value, current_value)
+            return max(float(latest.peak_value), current_value)
         return current_value
 
     async def _fire_alert(self, db, positions, portfolio_value, peak_value, drawdown):
@@ -131,11 +137,11 @@ class MonitorAgent:
                     "drawdown": f"{drawdown:.2%}",
                     "portfolio_value": portfolio_value,
                     "peak_value": peak_value,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
             }
         )
-        logger.info(f"📡 Alert broadcasted for {symbol}")
+        logger.info(f"Alert broadcasted for {symbol}")
 
         from agents.executor import executor
 

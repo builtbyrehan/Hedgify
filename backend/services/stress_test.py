@@ -16,9 +16,9 @@ DEMO_PRICES = {
 }
 
 
-def run_stress_test(symbol: str, drop_pct: float) -> dict:
+async def run_stress_test(symbol: str, drop_pct: float) -> dict:
     """Simulate a crash of drop_pct (fraction, 0.15 = -15%) on symbol."""
-    price, shares, has_position = _find_position(symbol)
+    price, shares, has_position = await _find_position(symbol)
 
     # Simulate the shock
     new_price = round(price * (1 - drop_pct), 2)
@@ -60,10 +60,10 @@ def run_stress_test(symbol: str, drop_pct: float) -> dict:
     }
 
 
-def _find_position(symbol: str):
+async def _find_position(symbol: str):
     """Return (price, shares, has_position). Real data if held, demo defaults otherwise."""
     try:
-        positions = alpaca.get_positions()
+        positions = await alpaca.get_positions()
         for pos in positions:
             if pos.get("symbol") == symbol:
                 price = float(pos.get("current_price", 0) or 0)

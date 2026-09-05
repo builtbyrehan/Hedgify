@@ -3,7 +3,7 @@ Hedge Executor (Worker) — receives drawdown alerts, calculates put options, pl
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from loguru import logger
 from services.event_logger import log_event
 from models.database import SessionLocal, Alert, Hedge
@@ -18,7 +18,7 @@ class HedgeExecutor:
         self, alert_id: int, symbol: str, current_price: float, drawdown: float
     ):
         """Main entry: called when Monitor fires an alert."""
-        logger.info(f"🔧 Executor processing alert #{alert_id} for {symbol}")
+        logger.info(f"Executor processing alert #{alert_id} for {symbol}")
         log_event(
             "Executor",
             "ALERT_RECEIVED",
@@ -30,7 +30,7 @@ class HedgeExecutor:
             # KILL-SWITCH: autonomous hedging can be disabled live via PUT /api/v1/config
             if not get_setting("autonomous_hedging", True):
                 logger.warning(
-                    f"⏸️ Autonomous hedging disabled — alert #{alert_id} acknowledged, no order placed"
+                    f"Autonomous hedging disabled — alert #{alert_id} acknowledged, no order placed"
                 )
                 log_event(
                     "Executor",
@@ -49,7 +49,7 @@ class HedgeExecutor:
             )
 
             if existing:
-                logger.warning(f"⚠️  Already hedged on {symbol} — skipping duplicate")
+                logger.warning(f"Already hedged on {symbol} — skipping duplicate")
                 log_event(
                     "Executor",
                     "IDEMPOTENCY_GUARD",
@@ -63,31 +63,75 @@ class HedgeExecutor:
             otm = get_setting("otm_buffer", OTM_BUFFER)
             strike_price = round(current_price * (1 - otm), 2)
             expiry_days = get_setting("expiry_days", DAYS_TO_EXPIRY)
-            expiry_date = (datetime.utcnow() + timedelta(days=expiry_days)).strftime(
+            expiry_date = (datetime.now(timezone.utc) + timedelta(days=expiry_days)).strftime(
                 "%Y-%m-%d"
             )
             quantity = 1
 
+            # PRE-ORDER BUDGET CHECK — estimate premium before placing order
+            # Typical 14-day OTM put costs ~1.5% of stock price per share
+            max_prem = get_setting("max_premium", 500.0)
+            estimated_premium = current_price * 0.015 * quantity * 100
+            if estimated_premium > max_prem:
+                self._update_alert_status(db, alert_id, "failed")
+                logger.error(
+                    f"Order rejected: estimated premium ${estimated_premium:.2f} exceeds max allocation ${max_prem:.2f}"
+                )
+                log_event(
+                    "Executor",
+                    "ORDER_FAILED",
+                    f"Estimated premium ${estimated_premium:.2f} exceeds max allocation ${max_prem:.2f} — order rejected before placement.",
+                    severity="error",
+                )
+                return
+
             logger.info(
-                f"📐 Put: {symbol} | Strike: ${strike_price} | Expiry: {expiry_date}"
+                f"Put: {symbol} | Strike: ${strike_price} | Expiry: {expiry_date}"
             )
 
             order_result = await self._place_order(
                 symbol, strike_price, expiry_date, quantity
             )
 
-            # MAX PREMIUM ALLOCATION — reject orders exceeding the configured budget
-            max_prem = get_setting("max_premium", 500.0)
-            premium = float(order_result.get("premium", 50.0))
-            if premium > max_prem:
+            # POST-ORDER VERIFICATION — confirm actual premium is within budget
+            premium = float(order_result.get("premium", 0))
+            if order_result["success"] and premium > max_prem:
+                # Cancel the order if it exceeded budget
+                cancel_success = False
+                try:
+                    order_id = order_result.get("order_id")
+                    if order_id:
+                        resp = await alpaca.client.delete(f"/v2/orders/{order_id}")
+                        cancel_success = resp.status_code < 400
+                        if cancel_success:
+                            logger.warning(f"Cancelled order {order_id}: premium ${premium:.2f} exceeded budget ${max_prem:.2f}")
+                        else:
+                            logger.error(f"Cancel returned {resp.status_code}: order may have already filled")
+                except Exception as e:
+                    logger.error(f"Failed to cancel over-budget order: {e}")
+
+                if not cancel_success:
+                    # Order likely filled — create hedge record to track the position
+                    logger.warning("Order could not be cancelled — creating hedge record to track filled position")
+                    hedge = Hedge(
+                        stock_symbol=symbol,
+                        strike_price=strike_price,
+                        expiry_date=expiry_date,
+                        quantity=quantity,
+                        premium_paid=premium,
+                        status="active",
+                    )
+                    db.add(hedge)
+                    db.commit()
+
                 self._update_alert_status(db, alert_id, "failed")
                 logger.error(
-                    f"❌ Order failed: premium ${premium:.2f} exceeds max allocation ${max_prem:.2f}"
+                    f"Order failed: actual premium ${premium:.2f} exceeds max allocation ${max_prem:.2f}"
                 )
                 log_event(
                     "Executor",
                     "ORDER_FAILED",
-                    f"Premium ${premium:.2f} exceeds max allocation ${max_prem:.2f} — order rejected.",
+                    f"Actual premium ${premium:.2f} exceeds max allocation ${max_prem:.2f} — order {'cancelled' if cancel_success else 'filled but tracked'}.",
                     severity="error",
                 )
                 return
@@ -113,13 +157,13 @@ class HedgeExecutor:
                             "strike": strike_price,
                             "expiry": expiry_date,
                             "premium": premium,
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                         },
                     }
                 )
 
                 logger.info(
-                    f"✅ Hedge active: {symbol} Put @ ${strike_price}, expires {expiry_date}"
+                    f"Hedge active: {symbol} Put @ ${strike_price}, expires {expiry_date}"
                 )
                 log_event(
                     "Executor",
@@ -128,7 +172,7 @@ class HedgeExecutor:
                 )
             else:
                 self._update_alert_status(db, alert_id, "failed")
-                logger.error(f"❌ Order failed: {order_result.get('error')}")
+                logger.error(f"Order failed: {order_result.get('error')}")
                 log_event(
                     "Executor",
                     "ORDER_FAILED",
@@ -148,10 +192,13 @@ class HedgeExecutor:
     async def _place_order(self, symbol: str, strike: float, expiry: str, qty: int):
         """Routes to real Alpaca options API or simulation based on config."""
         from config import REAL_OPTIONS_ORDERS
+        from services.app_settings import get_setting
 
-        if not REAL_OPTIONS_ORDERS:
+        real_orders = get_setting("real_options_orders", REAL_OPTIONS_ORDERS)
+
+        if not real_orders:
             logger.info(
-                f"🧾 SIMULATED: Buy Put {symbol} ${strike} {expiry} (REAL_OPTIONS_ORDERS=False)"
+                f"SIMULATED: Buy Put {symbol} ${strike} {expiry} (real_options_orders=False)"
             )
             return {
                 "success": True,
@@ -161,9 +208,9 @@ class HedgeExecutor:
             }
 
         try:
-            return alpaca.submit_option_order(symbol, strike, expiry, qty)
+            return await alpaca.submit_option_order(symbol, strike, expiry, qty)
         except Exception as e:
-            logger.error(f"❌ Real order error: {e}")
+            logger.error(f"Real order error: {e}")
             return {"success": False, "error": str(e)}
 
 

@@ -3,9 +3,12 @@ App Settings — live runtime configuration stored in SQLite.
 Agents read these each loop, so PUT /api/v1/config takes effect immediately.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from models.database import SessionLocal, AppSetting
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Registry: key -> type, default, allowed range
 SETTING_DEFS = {
@@ -15,6 +18,7 @@ SETTING_DEFS = {
     "expiry_days": {"type": int, "default": 14, "min": 1, "max": 90},
     "max_premium": {"type": float, "default": 500.0, "min": 10.0, "max": 10000.0},
     "poll_interval_seconds": {"type": int, "default": 10, "min": 5, "max": 3600},
+    "real_options_orders": {"type": bool, "default": True, "min": None, "max": None},
 }
 
 
@@ -28,8 +32,8 @@ def get_setting(key: str, default=None):
                 return _coerce(key, row.value)
         finally:
             db.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to read setting '{key}': {e}")
     if key in SETTING_DEFS:
         return SETTING_DEFS[key]["default"]
     return default
@@ -53,7 +57,7 @@ def set_settings(updates: dict) -> dict:
             row = db.query(AppSetting).filter(AppSetting.key == key).first()
             if row:
                 row.value = stored
-                row.updated_at = datetime.utcnow()
+                row.updated_at = datetime.now(timezone.utc)
             else:
                 db.add(AppSetting(key=key, value=stored))
         db.commit()

@@ -4,11 +4,10 @@ Supports local SQLite AND Turso (libSQL cloud) via DATABASE_URL env var.
 """
 
 import os
+from datetime import datetime, timezone
 
-from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, Numeric, Float, String, DateTime, Text, Index
+from sqlalchemy.orm import declarative_base, sessionmaker
 from config import DATABASE_URL as _CONFIG_DB_URL
 
 # Env var wins (Vercel/Turso), falls back to config.py default (local SQLite)
@@ -31,45 +30,53 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+
 class PortfolioSnapshot(Base):
     __tablename__ = "portfolio_snapshots"
-    
+    __table_args__ = (Index("ix_portfolio_snapshots_timestamp", "timestamp"),)
+
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    portfolio_value = Column(Float, nullable=False)
-    peak_value = Column(Float, nullable=False)
+    timestamp = Column(DateTime, default=_utcnow)
+    portfolio_value = Column(Numeric(12, 2), nullable=False)
+    peak_value = Column(Numeric(12, 2), nullable=False)
     drawdown_pct = Column(Float, nullable=False)
 
 
 class Alert(Base):
     __tablename__ = "alerts"
-    
+    __table_args__ = (Index("ix_alerts_timestamp", "timestamp"),)
+
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=_utcnow)
     stock_symbol = Column(String, nullable=False)
-    current_price = Column(Float, nullable=False)
+    current_price = Column(Numeric(10, 2), nullable=False)
     drawdown_pct = Column(Float, nullable=False)
     status = Column(String, default="fired")  # fired, processed, failed
 
 
 class Hedge(Base):
     __tablename__ = "hedges"
-    
+    __table_args__ = (Index("ix_hedges_timestamp", "timestamp"),)
+
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=_utcnow)
     stock_symbol = Column(String, nullable=False)
-    strike_price = Column(Float, nullable=False)
+    strike_price = Column(Numeric(10, 2), nullable=False)
     expiry_date = Column(String, nullable=False)
     quantity = Column(Integer, nullable=False)
-    premium_paid = Column(Float, nullable=False)
+    premium_paid = Column(Numeric(10, 2), nullable=False)
     status = Column(String, default="active")  # active, expired, closed
 
 
 class EventLog(Base):
     __tablename__ = "event_logs"
+    __table_args__ = (Index("ix_event_logs_timestamp", "timestamp"),)
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=_utcnow)
     agent = Column(String, index=True)          # "Monitor" | "Executor"
     event_type = Column(String, index=True)     # "PORTFOLIO_CHECK", "HEDGE_PLACED", ...
     message = Column(Text)
@@ -80,7 +87,7 @@ class AppSetting(Base):
 
     key = Column(String, primary_key=True)
     value = Column(String)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=_utcnow)
 
 
 def init_db():
