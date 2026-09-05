@@ -83,7 +83,7 @@ When retail investors hold equity portfolios, unexpected market shocks cause rap
 | 🧪 **Stress Test Simulator** | ✅ | Synthetic crash → hedged vs unhedged → **CPR gauge** |
 | 🔐 **API Authentication** | ✅ | All endpoints protected with API key auth |
 | 🛡️ **Async HTTP Client** | ✅ | Non-blocking Alpaca API calls (no event loop freeze) |
-| 🔌 **MCP Bridge** | 📋 | Model Context Protocol for universal broker support |
+| 🔌 **MCP Bridge** | ✅ | Model Context Protocol — MCP Server + fallback to direct Alpaca API |
 
 ---
 
@@ -108,8 +108,13 @@ flowchart TB
         subgraph Agents["Agent Engine"]
             MON["🧠 Monitor Agent<br/><i>Supervisor</i>"]
             EXE["🛡️ Hedge Executor<br/><i>Worker</i>"]
+            BRG["🔌 MCP Bridge<br/><i>Fallback + Retry</i>"]
         end
         CFG["⚙️ Runtime Config<br/><i>app_settings</i>"]
+    end
+
+    subgraph MCP["MCP Server :8080"]
+        MCP_SRV["MCP Proxy<br/><i>Tool Translation</i>"]
     end
 
     subgraph Data["💾 SQLite"]
@@ -126,8 +131,11 @@ flowchart TB
     end
 
     MON -->|"DRAWDOWN_EVENT"| EXE
-    EXE -->|"order + idempotency"| ACC
-    EXE -->|"live chain quotes"| OPT
+    EXE -->|"buy_protective_put"| BRG
+    BRG -->|"MCP tool call"| MCP_SRV
+    MCP_SRV -->|"order"| ACC
+    BRG -->|"fallback"| ACC
+    BRG -->|"chain validation"| OPT
     ACC -->|"equity + positions"| MON
     CFG -->|"read every loop"| MON & EXE
 
@@ -143,26 +151,34 @@ flowchart TB
 ## 🧠 The Agentic Pipeline
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│  Monitor Agent  │────►│  DRAWDOWN_EVENT  │────►│  Hedge Executor  │
-│   (Supervisor)  │     │  {symbol, drop}  │     │     (Worker)     │
-│                 │     │                  │     │                  │
-│ • Polls Alpaca  │     │                  │     │ • kill-switch?   │
-│ • Tracks peak   │     │                  │     │ • idempotency    │
-│ • Detects drop  │     │                  │     │ • chain lookup   │
-│ • Fires event   │     │                  │     │ • real order     │
-└─────────────────┘     └──────────────────┘     └──────────────────┘
-         │                                                 │
-         ▼                                                 ▼
-   ┌───────────────┐                                ┌───────────────┐
-   │ SQLite + logs │                                │ SQLite + logs │
-   └───────────────┘                                └───────────────┘
-         │                                                 │
-         └────────────────────┬────────────────────────────┘
+┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Monitor Agent  │────►│  DRAWDOWN_EVENT  │────►│  Hedge Executor  │────►│   MCP Bridge     │
+│   (Supervisor)  │     │  {symbol, drop}  │     │     (Worker)     │     │  (Fallback)      │
+│                 │     │                  │     │                  │     │                  │
+│ • Polls Alpaca  │     │                  │     │ • kill-switch?   │     │ • hallucination  │
+│ • Tracks peak   │     │                  │     │ • idempotency    │     │   guard          │
+│ • Detects drop  │     │                  │     │ • budget check   │     │ • MCP primary    │
+│ • Fires event   │     │                  │     │ • bridge call    │     │ • direct fallback│
+└─────────────────┘     └──────────────────┘     └──────────────────┘     │ • retry 3x       │
+                                                                         └────────┬─────────┘
+                                                                                  │
+                              ┌───────────────────────────────────────────────────┘
                               ▼
-                    ┌──────────────────┐
-                    │  WebSocket Push  │──► 🎨 React Dashboard
-                    └──────────────────┘
+                    ┌──────────────────┐     ┌──────────────────┐
+                    │   MCP Server     │────►│   Alpaca APIs    │
+                    │   (port 8080)    │     │  Trading + Data  │
+                    └──────────────────┘     └──────────────────┘
+                              │                         │
+                              ▼                         ▼
+                    ┌───────────────┐           ┌───────────────┐
+                    │ SQLite + logs │           │ SQLite + logs │
+                    └───────────────┘           └───────────────┘
+                              │                         │
+                              └────────────┬────────────┘
+                                           ▼
+                                 ┌──────────────────┐
+                                 │  WebSocket Push  │──► 🎨 React Dashboard
+                                 └──────────────────┘
 ```
 
 ---
@@ -237,6 +253,10 @@ copy .env.example .env           # macOS/Linux: cp .env.example .env
 # → add your Alpaca Paper Trading keys (app.alpaca.markets)
 # → add any secret string as HEDGIFY_API_KEY (used for API auth)
 
+# Terminal 1: MCP Server (port 8080)
+python mcp_server.py
+
+# Terminal 2: Main API (port 8000)
 python -m uvicorn main:app --reload
 # API: http://localhost:8000  •  WebSocket: ws://localhost:8000/ws?token=<your_key>
 ```
@@ -269,6 +289,8 @@ Orders placed outside market hours are **accepted and queued** by Alpaca, then a
 
 All endpoints (except `/health`) require authentication via `X-API-Key` header or `?api_key=` query parameter.
 
+### Main API (port 8000)
+
 | Endpoint | Method | Description |
 |---|---|---|
 | `/health` | `GET` | Service health (no auth required) |
@@ -282,9 +304,23 @@ All endpoints (except `/health`) require authentication via `X-API-Key` header o
 | `/api/v1/simulate-drawdown` | `POST` | Fire a real alert through the full pipeline |
 | `/ws?token=<key>` | WebSocket | Live push: alerts, hedges, portfolio (token auth) |
 
+### MCP Server (port 8080)
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/mcp/call` | `POST` | MCP tool call — `buy_protective_put` |
+| `/mcp/tools` | `GET` | List available MCP tools |
+| `/health` | `GET` | MCP server health |
+
 **Example:**
 ```bash
+# Main API
 curl -H "X-API-Key: your_secret_key" http://localhost:8000/api/v1/portfolio
+
+# MCP Server
+curl -X POST http://localhost:8080/mcp/call \
+  -H "Content-Type: application/json" \
+  -d '{"tool": "buy_protective_put", "parameters": {"symbol": "AAPL", "strike_price": 190.0, "expiration_date": "2026-09-18", "quantity": 1}}'
 ```
 
 ---
@@ -313,8 +349,8 @@ Event telemetry + logs              ██████████ 100%
 Stress test simulator               ██████████ 100%
 Real options execution — FILLED     ██████████ 100%
 Security + auth + code review       ██████████ 100%
+MCP server + bridge + fallback      ██████████ 100%
 Demo video + final docs             ████░░░░░░  40%
-MCP server integration              ░░░░░░░░░░   0%
 ```
 
 ---
@@ -377,6 +413,7 @@ Run the action once, then add to README:
 | **Production Engineering** | Idempotency, runtime reconfiguration, graceful degradation, audit trails |
 | **Financial API Integration** | Dual-host Alpaca architecture (trading + options data), async fill handling |
 | **Real-Time Systems** | WebSocket push for sub-second dashboard updates |
+| **MCP Protocol** | Model Context Protocol server, tool translation, fallback strategy |
 
 ---
 
@@ -390,7 +427,8 @@ Hedgify/
 ├── backend/
 │   ├── agents/
 │   │   ├── monitor.py          # Supervisor — polls, detects, fires
-│   │   └── executor.py         # Worker — guards, matches, orders
+│   │   ├── executor.py         # Worker — guards, matches, orders
+│   │   └── bridge.py           # MCP bridge — fallback, retry, hallucination guard
 │   ├── api/
 │   │   ├── routes.py           # REST endpoints (authenticated)
 │   │   └── websocket.py        # Live push manager (token auth)
@@ -403,6 +441,7 @@ Hedgify/
 │   │   └── stress_test.py      # Crash simulation engine
 │   ├── config.py               # Environment variables + constants
 │   ├── main.py                 # FastAPI app + lifespan
+│   ├── mcp_server.py           # MCP proxy server (port 8080)
 │   ├── requirements.txt        # Python dependencies
 │   └── .env.example            # Environment template
 └── frontend/
