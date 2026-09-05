@@ -10,7 +10,7 @@ from models.database import SessionLocal, Alert, Hedge
 from api.websocket import websocket_manager
 from config import OTM_BUFFER, DAYS_TO_EXPIRY
 from services.app_settings import get_setting
-from services.alpaca_client import alpaca
+from agents.bridge import buy_protective_put, simulated_order, HedgeOrderResult
 
 
 class HedgeExecutor:
@@ -94,17 +94,17 @@ class HedgeExecutor:
             )
 
             # POST-ORDER VERIFICATION — confirm actual premium is within budget
-            premium = float(order_result.get("premium", 0))
-            if order_result["success"] and premium > max_prem:
+            premium = float(order_result.premium or 0)
+            if order_result.success and premium > max_prem:
                 # Cancel the order if it exceeded budget
                 cancel_success = False
                 try:
-                    order_id = order_result.get("order_id")
-                    if order_id:
-                        resp = await alpaca.client.delete(f"/v2/orders/{order_id}")
+                    if order_result.order_id:
+                        from services.alpaca_client import alpaca
+                        resp = await alpaca.client.delete(f"/v2/orders/{order_result.order_id}")
                         cancel_success = resp.status_code < 400
                         if cancel_success:
-                            logger.warning(f"Cancelled order {order_id}: premium ${premium:.2f} exceeded budget ${max_prem:.2f}")
+                            logger.warning(f"Cancelled order {order_result.order_id}: premium ${premium:.2f} exceeded budget ${max_prem:.2f}")
                         else:
                             logger.error(f"Cancel returned {resp.status_code}: order may have already filled")
                 except Exception as e:
@@ -136,7 +136,7 @@ class HedgeExecutor:
                 )
                 return
 
-            if order_result["success"]:
+            if order_result.success:
                 hedge = Hedge(
                     stock_symbol=symbol,
                     strike_price=strike_price,
@@ -163,20 +163,22 @@ class HedgeExecutor:
                 )
 
                 logger.info(
-                    f"Hedge active: {symbol} Put @ ${strike_price}, expires {expiry_date}"
+                    f"Hedge active: {symbol} Put @ ${strike_price}, expires {expiry_date} "
+                    f"[path={order_result.path_used}]"
                 )
                 log_event(
                     "Executor",
                     "HEDGE_PLACED",
-                    f"Protective put order filled: {symbol} {otm:.0%} OTM, {expiry_days}-day expiry, ${premium:.2f} premium.",
+                    f"Protective put order filled via {order_result.path_used}: "
+                    f"{symbol} {otm:.0%} OTM, {expiry_days}-day expiry, ${premium:.2f} premium.",
                 )
             else:
                 self._update_alert_status(db, alert_id, "failed")
-                logger.error(f"Order failed: {order_result.get('error')}")
+                logger.error(f"Order failed: {order_result.error}")
                 log_event(
                     "Executor",
                     "ORDER_FAILED",
-                    f"Order failed: {order_result.get('error')}",
+                    f"Order failed: {order_result.error}",
                     severity="error",
                 )
 
@@ -189,29 +191,28 @@ class HedgeExecutor:
             alert.status = status
             db.commit()
 
-    async def _place_order(self, symbol: str, strike: float, expiry: str, qty: int):
-        """Routes to real Alpaca options API or simulation based on config."""
+    async def _place_order(self, symbol: str, strike: float, expiry: str, qty: int) -> HedgeOrderResult:
+        """Routes to MCP bridge (primary) or simulation based on config."""
         from config import REAL_OPTIONS_ORDERS
         from services.app_settings import get_setting
 
         real_orders = get_setting("real_options_orders", REAL_OPTIONS_ORDERS)
 
         if not real_orders:
-            logger.info(
-                f"SIMULATED: Buy Put {symbol} ${strike} {expiry} (real_options_orders=False)"
-            )
-            return {
-                "success": True,
-                "order_id": str(uuid.uuid4()),
-                "premium": 50.0,
-                "status": "filled",
-            }
+            return simulated_order(symbol, strike, expiry, qty)
 
         try:
-            return await alpaca.submit_option_order(symbol, strike, expiry, qty)
+            return await buy_protective_put(symbol, strike, expiry, qty)
         except Exception as e:
-            logger.error(f"Real order error: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Order error: {e}")
+            return HedgeOrderResult(
+                success=False,
+                error=str(e),
+                symbol=symbol,
+                strike_price=strike,
+                expiry_date=expiry,
+                quantity=qty,
+            )
 
 
 executor = HedgeExecutor()
