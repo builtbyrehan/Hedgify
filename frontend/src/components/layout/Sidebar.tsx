@@ -45,6 +45,15 @@ const mainNav = [
     )
   },
   {
+    to: '/dashboard/trade',
+    label: 'Trade',
+    icon: (active: boolean) => (
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={active ? 'text-[var(--brand)]' : 'text-[var(--text-faint)]'}>
+        <path d="M1.5 9h15M5.25 4.5l-3.75 4.5 3.75 4.5M12.75 4.5l3.75 4.5-3.75 4.5" />
+      </svg>
+    )
+  },
+  {
     to: '/dashboard/logs',
     label: 'Logs',
     icon: (active: boolean) => (
@@ -100,7 +109,7 @@ export default function Sidebar() {
         >
           <div className="flex items-center">
             <img
-              src="/logo/hedgify.png"
+              src={theme === 'dark' ? '/logo/hedgify.png' : '/logo/hedgify - light.png'}
               alt="Hedgify"
               className="h-6 w-auto max-h-6 max-w-[140px] object-contain"
             />

@@ -9,6 +9,7 @@ import HedgesPage from './pages/HedgesPage'
 import StressTestPage from './pages/StressTestPage'
 import LogsPage from './pages/LogsPage'
 import SettingsPage from './pages/SettingsPage'
+import TradePage from './pages/TradePage'
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="stress-test" element={<StressTestPage />} />
             <Route path="logs" element={<LogsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="trade" element={<TradePage />} />
           </Route>
         </Routes>
       </BrowserRouter>

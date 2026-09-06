@@ -137,6 +137,45 @@ export async function runStressTest(symbol: string, dropPct: number): Promise<St
   return null
 }
 
+// ─── Manual Trading ────────────────────────────────────────────────
+
+export interface TradeParams {
+  symbol: string
+  strike: number
+  expiry: string
+  qty: number
+  side?: 'buy' | 'sell'
+}
+
+export interface TradeResult {
+  ok: boolean
+  mode?: 'simulated' | 'live'
+  order_id?: string
+  symbol?: string
+  strike?: number
+  expiry?: string
+  qty?: number
+  premium?: number
+  status?: string
+  error?: string
+}
+
+export async function placeTrade(params: TradeParams): Promise<TradeResult> {
+  if (!_apiBase) return { ok: false, error: 'Backend offline' }
+  try {
+    const r = await fetch(`${_apiBase}/api/v1/trade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+    const data = await r.json()
+    if (!r.ok) return { ok: false, error: data.detail ?? `HTTP ${r.status}` }
+    return data
+  } catch {
+    return { ok: false, error: 'Network error' }
+  }
+}
+
 // ─── Runtime Config (Settings page) ───────────────────────────────
 
 export async function fetchConfig(): Promise<Record<string, any> | null> {

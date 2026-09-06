@@ -201,6 +201,93 @@ async def get_logs(limit: int = 50, agent: str = None, severity: str = None, db:
 from services.app_settings import get_all_settings, set_settings
 
 
+class TradeRequest(BaseModel):
+    symbol: str
+    strike: float
+    expiry: str  # YYYY-MM-DD
+    qty: int = 1
+    side: str = "buy"  # buy or sell
+
+
+@router.post("/trade")
+async def place_trade(req: TradeRequest, db: Session = Depends(get_db), _auth: None = Depends(_require_api_key)):
+    """Manually place an options trade via Alpaca paper trading."""
+    from config import REAL_OPTIONS_ORDERS
+
+    symbol = req.symbol.upper().strip()
+    if not symbol:
+        raise HTTPException(status_code=400, detail="Symbol is required")
+    if req.strike <= 0:
+        raise HTTPException(status_code=400, detail="Strike price must be positive")
+    if req.qty < 1:
+        raise HTTPException(status_code=400, detail="Quantity must be at least 1")
+
+    if not REAL_OPTIONS_ORDERS:
+        # Simulated order
+        premium = req.strike * 0.05 * req.qty * 100
+        hedge = Hedge(
+            stock_symbol=symbol,
+            strike_price=req.strike,
+            expiry_date=req.expiry,
+            quantity=req.qty,
+            premium_paid=premium,
+            status="simulated",
+        )
+        db.add(hedge)
+        db.commit()
+        db.refresh(hedge)
+
+        await websocket_manager.broadcast({
+            "type": "HEDGE",
+            "data": {"symbol": symbol, "strike": req.strike, "expiry": req.expiry, "status": "simulated", "premium": premium}
+        })
+
+        return {
+            "ok": True,
+            "mode": "simulated",
+            "order_id": f"sim-{hedge.id}",
+            "symbol": symbol,
+            "strike": req.strike,
+            "expiry": req.expiry,
+            "qty": req.qty,
+            "premium": premium,
+        }
+
+    # Real order via Alpaca
+    result = await alpaca.submit_option_order(symbol, req.strike, req.expiry, req.qty)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Order failed"))
+
+    hedge = Hedge(
+        stock_symbol=symbol,
+        strike_price=req.strike,
+        expiry_date=req.expiry,
+        quantity=req.qty,
+        premium_paid=result.get("premium", 0),
+        status="filled" if result.get("status") == "filled" else "pending",
+    )
+    db.add(hedge)
+    db.commit()
+    db.refresh(hedge)
+
+    await websocket_manager.broadcast({
+        "type": "HEDGE",
+        "data": {"symbol": symbol, "strike": req.strike, "expiry": req.expiry, "status": hedge.status, "premium": result.get("premium", 0)}
+    })
+
+    return {
+        "ok": True,
+        "mode": "live",
+        "order_id": result.get("order_id"),
+        "symbol": symbol,
+        "strike": req.strike,
+        "expiry": req.expiry,
+        "qty": req.qty,
+        "premium": result.get("premium", 0),
+        "status": result.get("status"),
+    }
+
+
 class ConfigUpdate(BaseModel):
     updates: dict
 
