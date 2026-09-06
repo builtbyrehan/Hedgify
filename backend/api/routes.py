@@ -25,6 +25,8 @@ _SIMULATE_COOLDOWN = 2.0  # seconds between calls
 
 def _require_api_key(request: Request):
     """Validate API key from header or query parameter."""
+    if not HEDGIFY_API_KEY:
+        return
     api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
     if not api_key or api_key != HEDGIFY_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")

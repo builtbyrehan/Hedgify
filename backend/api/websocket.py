@@ -46,10 +46,11 @@ class WebSocketManager:
     async def endpoint(self, websocket: WebSocket):
         """React connects here: ws://localhost:8000/ws?token=<api_key>"""
         # Authenticate via query parameter
-        token = websocket.query_params.get("token")
-        if not token or token != HEDGIFY_API_KEY:
-            await websocket.close(code=4001, reason="Invalid or missing token")
-            return
+        if HEDGIFY_API_KEY:
+            token = websocket.query_params.get("token")
+            if not token or token != HEDGIFY_API_KEY:
+                await websocket.close(code=4001, reason="Invalid or missing token")
+                return
 
         await self.connect(websocket)
         try:

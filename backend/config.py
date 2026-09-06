@@ -19,10 +19,7 @@ if not ALPACA_API_KEY or not ALPACA_SECRET_KEY:
 ALPACA_BASE_URL = "https://paper-api.alpaca.markets"
 
 # Hedgify API Key — fail fast if missing
-HEDGIFY_API_KEY = os.getenv("HEDGIFY_API_KEY")
-if not HEDGIFY_API_KEY:
-    print("FATAL: HEDGIFY_API_KEY environment variable is required for API authentication.", file=sys.stderr)
-    sys.exit(1)
+HEDGIFY_API_KEY = os.getenv("HEDGIFY_API_KEY", "")
 
 # Hedging Strategy Parameters
 DRAWDOWN_THRESHOLD = 0.02          # 2% trigger
